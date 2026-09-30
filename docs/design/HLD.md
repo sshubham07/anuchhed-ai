@@ -192,6 +192,9 @@ role only. The router stays small.
 
 - Official English text from the Legislative Department, Government of India (legislative.gov.in), the latest
   "as on <date>" edition. The edition date is stored in `documents.version_date` and shown in the UI.
+  v1 uses the edition **as on 1st May, 2024** (402 pages; body pp. 32–381; Appendices I–III pp. 382–402 are
+  ingested too, as `chunk_type='appendix'`). Layout details
+  and parsing rules: `docs/specs/ingestion.md`.
 - Must be a text PDF (not scanned). The ingestion CLI fails fast if < 90% of pages yield text.
 - Rough corpus size: Preamble + ~450 Articles (including lettered ones such as 21A, 51A, 243ZH) across 25 Parts
   and 12 Schedules.
@@ -208,6 +211,7 @@ extract (PyMuPDF, per page, keep font size/bold flags)
         bold sub-heading       → group heading ("Right to Freedom")
         ^\d+[A-Z]*\.\s         → new Article (article_no, title)
         SCHEDULE headings      → schedule_no; list items → entries
+        APPENDIX I/II/III      → appendix_no (structure rules off inside an Appendix)
   → chunk (rules below) → embed_text build → embed (bge-m3, batch 16) → upsert
   → write data/processed/chunks.jsonl (versioned artifact, used by eval and debugging)
 ```
@@ -221,11 +225,13 @@ extract (PyMuPDF, per page, keep font size/bold flags)
 | Short Articles | Kept as their own chunk (no merging). The header prefix gives enough context, and citations stay exact. |
 | Omitted/repealed | Kept as a chunk with `is_omitted=true`, e.g. Art. 31 → "Omitted by the Constitution (Forty-fourth Amendment) Act, 1978". The bot can then answer "Article 31 was omitted…" correctly. |
 | Schedules | Seventh Schedule: one chunk per List (I/II/III) **section of ~10 entries** with entry numbers kept. Other Schedules: split by paragraph or Part, 300–700 tokens. |
+| Appendices | Split by section/paragraph, 300–700 tokens, ids `app-2#0`; Appendix I tables rebuilt row by row with the column header repeated. |
 | Amendment notes | Footnote text is appended as `Amendment notes: …` to the chunk and stored in `amendment_notes` (jsonb). This answers "which amendment inserted 21A?". |
 | embed_text | `"{Part no} — {Part title} > {Chapter/group} > Article {no}: {title}\n\n{body}\n\nAmendment notes: …"` |
 | display text | Clean body only (shown in citation panels). |
 
-Expected output: **~1,200–1,800 chunks**, averaging ~250 tokens.
+Actual output (edition as on 1 May 2024, chunker v1): **702 chunks**, averaging ~300 tokens (max 799). The count
+is reported by ingestion, not gated (spec: ingestion §8).
 
 ### 7.4 Indexing and idempotency
 
@@ -500,12 +506,13 @@ CREATE TABLE documents (
 CREATE TABLE chunks (
   id               TEXT NOT NULL,              -- 'art-21#0', 'sch-7-list2#3', 'preamble#0'
   document_id      UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  chunk_type       TEXT NOT NULL CHECK (chunk_type IN ('preamble','article','schedule')),
+  chunk_type       TEXT NOT NULL CHECK (chunk_type IN ('preamble','article','schedule','appendix')),  -- 'appendix' from migration 002
   seq              INT  NOT NULL,              -- reading order
   part_no          TEXT, part_title TEXT, chapter TEXT, group_heading TEXT,
   article_no       TEXT,                       -- '21A'
   article_title    TEXT,
   schedule_no      TEXT,
+  appendix_no      TEXT,                       -- 'I' / 'II' / 'III' (migration 002)
   clause_range     TEXT,                       -- '(1)-(3)' for split articles
   is_omitted       BOOLEAN NOT NULL DEFAULT false,
   amendment_notes  JSONB NOT NULL DEFAULT '[]',

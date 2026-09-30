@@ -57,26 +57,39 @@ CI is green; logs show `request_id` on every line.
 ## Phase 1 — Ingestion & chunking
 
 **Goal:** the official PDF becomes validated, structure-aware chunks in Postgres.
-**Spec:** HLD §7.
+**Spec:** `docs/specs/ingestion.md` · HLD §7 · ADR-0001, ADR-0008.
 
-- [ ] P1.1 Download the official English PDF (legislative.gov.in) into `data/raw/`; record the edition date
-- [ ] P1.2 `ingestion/extract.py` — PyMuPDF page text + font flags; text-PDF check (≥ 90% pages with text)
-- [ ] P1.3 `ingestion/clean.py` — headers/footers, page numbers, hyphenation, whitespace; footnote detection and
-      marker stripping
-- [ ] P1.4 `ingestion/segment.py` — state machine for Part / Chapter / group heading / Article / Schedule; unit
-      tests on 15+ tricky snippets (lettered Articles, omitted Articles, Part IVA, IXA, Seventh Schedule lists)
-- [ ] P1.5 `ingestion/chunk.py` — chunker v1 rules (one per Article, clause split > 800 tokens, schedule rules,
-      amendment notes, `embed_text` vs `text`)
-- [ ] P1.6 `eval/fixtures/expected_articles.txt` — canonical Article list for validation
-- [ ] P1.7 `ingestion/validate.py` — missing/duplicate Articles, size histogram; **fail on any missing Article**
-- [ ] P1.8 `ingestion/embed.py` — bge-m3 dense embeddings (normalized, batch 16), device auto (cuda/mps/cpu)
-- [ ] P1.9 `ingestion/cli.py ingest <pdf>` — idempotent by (sha256, chunker_version, embed_model), writes
-      `data/processed/chunks.jsonl`, upserts DB, `--activate` flag for blue/green
-- [ ] P1.10 Manual spot check: 30 random Articles vs the PDF (record results in `eval/reports/ingestion_check.md`)
-- [ ] P1.11 Integration test: 10-Article fixture PDF/text → DB rows with correct metadata
+- [x] P1.0 Local models: `pymupdf` + `sentence-transformers` deps; `ingestion/models.py` + `make models`
+      (bge-m3, no ONNX); `EMBED_BATCH_SIZE`/`EMBED_MAX_LENGTH` config; slow smoke test (spec §3.10)
+- [x] P1.1 Official English PDF in `data/raw/constitution.pdf` — edition "as on 1st May, 2024" (spec §3.1)
+- [x] P1.2 `ingestion/types.py` + `ingestion/extract.py` — PyMuPDF spans → rows rebuilt by vertical overlap,
+      bold prefix, `{{fn:N}}` footnote tokens, table cells in `parts`; text-PDF check (spec §3.2–3.3)
+- [x] P1.3 `ingestion/clean.py` — running header/context line/page number removal, body range (PREAMBLE →
+      APPENDIX I), hyphenation, whitespace/quotes (spec §3.1–3.2)
+- [x] P1.4 `ingestion/footnotes.py` — rule-line split, per-page numbering, marker stripping, spill to next page,
+      `amendment_notes` parsing (spec §3.2, §3.6)
+- [x] P1.5 `ingestion/segment.py` — state machine for Part / Chapter / group heading / Article / Schedule / List /
+      Appendix; ≥ 15 snippet tests (spec §3.4, §7)
+- [x] P1.6 `eval/fixtures/expected_articles.txt` — bootstrapped from the Contents pages by a script, reviewed by
+      hand, committed (spec §3.11)
+- [x] P1.7 `ingestion/chunk.py` — chunker v1 rules, clause split > 800 tokens, Seventh Schedule groups of 10,
+      `embed_text` vs `text`, bge-m3 token counts; chunk config keys (spec §3.5–3.6, §4)
+- [x] P1.8 `ingestion/validate.py` — missing/duplicate/unexpected Articles, token cap, histogram;
+      **fail on any missing Article** (spec §3.11)
+- [x] P1.9 `ingestion/embed.py` — `Embedder` protocol, `BgeM3Embedder` (normalized, batch 16, max_length 1024,
+      device auto cuda/mps/cpu), `FakeEmbedder` (spec §3.7)
+- [x] P1.10 Migration 002 (`appendix` chunk type + `appendix_no`) and `db/repositories/corpus.py` — find by key,
+      insert document + chunks in one transaction, activate (spec §3.8)
+- [x] P1.11 `ingestion/cli.py` — `ingest <pdf>` idempotent by (sha256, chunker_version, embed_model),
+      `--dry-run`, `--activate`, `activate <id>`; writes `chunks.jsonl` + `ingestion_report.json`; log events
+      (spec §3.9, §3.12)
+- [x] P1.12 Integration test: ~10-Article fixture → `FakeEmbedder` → Postgres rows with correct metadata;
+      re-run no-op; activate flips (spec §7)
+- [ ] P1.13 Full ingest (done: 702 chunks, active) + manual spot check of 30 random Articles vs the PDF
+      (`eval/reports/ingestion_check.md`); update HLD §7.3 chunk estimate with the real count
 
-**Exit criteria:** full PDF ingests in ≤ 20 min on CPU; validation passes with 0 missing Articles; spot check
-≥ 29/30 clean; ~1,200–1,800 chunks.
+**Exit criteria:** full PDF ingests in ≤ 20 min on CPU; validation passes with 0 missing/duplicate Articles; spot
+check ≥ 29/30 clean; chunk count and token histogram recorded in `ingestion_report.json`.
 
 ---
 
@@ -126,7 +139,7 @@ retrieval p95 ≤ 300 ms and rerank p95 ≤ 800 ms locally.
 **Goal:** grounded, cited answers through a deterministic pipeline.
 **Spec:** HLD §6, §8.2, §8.5, §8.6 · observability §1.5.
 
-- [ ] P4.1 Migration 002: `llm_calls`
+- [ ] P4.1 Migration 003: `llm_calls`
 - [ ] P4.2 `llm/client.py` — LiteLLM wrapper (`complete`, `stream`), timeouts, 1 retry, provider fallback,
       TTFT, `llm_calls` insert, `llm_call_completed` / `llm_fallback` events; `FakeLLM` for tests
 - [ ] P4.3 `llm/budget.py` — daily per-model counter from `llm_calls` vs configured caps; `budget_near_cap`
@@ -135,7 +148,8 @@ retrieval p95 ≤ 300 ms and rerank p95 ≤ 800 ms locally.
 - [ ] P4.5 `query/hyde.py` and `query/decompose.py` (sub-query retrieval + merge, cap 8)
 - [ ] P4.6 `prompts/answer.v1.md` + `generation/answer.py` — excerpt formatting, streaming, omitted-Article
       handling, disclaimer
-- [ ] P4.7 `generation/citations.py` — extract, validate against retrieved refs, drop invalid, `invalid_citation`
+- [ ] P4.7 `generation/citations.py` — extract, validate against retrieved refs (incl. `Appendix I–III`), drop
+      invalid, `invalid_citation`
 - [ ] P4.8 Templated replies for `ambiguous`, `out_of_scope`, `chitchat`
 - [ ] P4.9 `eval/run.py --suite router` — type accuracy, refs F1, JSON validity (standalone checks come in
       Phase 5 with memory)
@@ -156,7 +170,7 @@ produces an `llm_calls` row (integration test); a provider failure falls back cl
 **Goal:** a conversational API that meets the HLD contract.
 **Spec:** HLD §8.1, §8.4, §9, §11.
 
-- [ ] P5.1 Migration 003: `chat_sessions`, `chat_messages`, `feedback`
+- [ ] P5.1 Migration 004: `chat_sessions`, `chat_messages`, `feedback`
 - [ ] P5.2 Repositories for sessions/messages/feedback
 - [ ] P5.3 `POST /v1/sessions`, `GET /v1/sessions/{id}/messages`, `DELETE /v1/sessions/{id}`
 - [ ] P5.4 `memory/loader.py` — summary + structured memory + last 6 messages
@@ -224,7 +238,7 @@ first token p95 ≤ 2.5 s over 20 local sample requests.
 
 **Spec:** HLD §9.4.
 
-- [ ] P8.1 Migration: `summary`, `summarized_upto_message_id`, `summary_version` (if not already in 003)
+- [ ] P8.1 Migration: `summary`, `summarized_upto_message_id`, `summary_version` (if not already in 004)
 - [ ] P8.2 `prompts/summary.v1.md` + `memory/summarizer.py` (batch fold, ≤ 150 words)
 - [ ] P8.3 BackgroundTask trigger + per-session lock (`FOR UPDATE SKIP LOCKED`)
 - [ ] P8.4 Loader uses summary + `RAW_WINDOW=12`

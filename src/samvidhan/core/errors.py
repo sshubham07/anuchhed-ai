@@ -27,3 +27,11 @@ class ServiceUnavailableError(SamvidhanError):
     code = "SERVICE_UNAVAILABLE"
     http_status = 503
     default_message = "Service unavailable"
+
+
+class InvalidSourceError(SamvidhanError):
+    """The ingestion input is unusable (not a text PDF, wrong document layout). CLI exit code 2."""
+
+    code = "INVALID_SOURCE"
+    http_status = 422
+    default_message = "The source document cannot be ingested"

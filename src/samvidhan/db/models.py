@@ -60,7 +60,9 @@ class Document(Base):
 class Chunk(Base):
     __tablename__ = "chunks"
     __table_args__ = (
-        CheckConstraint("chunk_type IN ('preamble','article','schedule')", name="chunk_type"),
+        CheckConstraint(
+            "chunk_type IN ('preamble','article','schedule','appendix')", name="chunk_type"
+        ),
         Index(
             "chunks_embedding_hnsw",
             "embedding",
@@ -71,7 +73,8 @@ class Chunk(Base):
         Index("chunks_article", "document_id", "article_no"),
     )
 
-    id: Mapped[str] = mapped_column(Text, primary_key=True)  # 'art-21#0', 'sch-7-list2#3'
+    # 'art-21#0', 'sch-7-list2#3', 'app-2#0', 'preamble#0'
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
     document_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
     )
@@ -84,6 +87,7 @@ class Chunk(Base):
     article_no: Mapped[str | None] = mapped_column(Text)
     article_title: Mapped[str | None] = mapped_column(Text)
     schedule_no: Mapped[str | None] = mapped_column(Text)
+    appendix_no: Mapped[str | None] = mapped_column(Text)  # migration 002
     clause_range: Mapped[str | None] = mapped_column(Text)
     is_omitted: Mapped[bool] = mapped_column(Boolean, server_default=sql_text("false"))
     amendment_notes: Mapped[list[dict[str, Any]]] = mapped_column(

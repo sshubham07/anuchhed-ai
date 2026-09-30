@@ -31,6 +31,9 @@ reversible migrations for the corpus tables, a FastAPI app with health checks an
   (`samvidhan_pgdata`) never collide with another project's compose stack.
 - Image `pgvector/pgvector:pg16`. Host port is `${DB_HOST_PORT:-5433}` → container `5432`. **5433 by default**
   because 5432 is commonly taken by another local Postgres; override via `DB_HOST_PORT` in `.env`.
+- Credentials (`POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`) come from the gitignored `.env`; compose fails
+  fast if `POSTGRES_PASSWORD` is unset. The port is published on `127.0.0.1` only. `DATABASE_URL` has no default in
+  `config.py` — it must be set in the environment.
 - Healthcheck: `pg_isready`. `make up` waits for `healthy`.
 - `DATABASE_URL` in `.env.example` points at `localhost:5433`. Inside compose the `api` service overrides it to
   `db:5432`.

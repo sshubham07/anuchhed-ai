@@ -11,6 +11,8 @@ dependencies = [
     "pgvector>=0.5.0",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
+    "pymupdf>=1.28.2",
+    "sentence-transformers>=6.1.0",
     "sqlalchemy[asyncio]>=2.1.1",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
@@ -42,9 +44,11 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["src"]
+# PyMuPDF ships partial annotations; calls into its untyped parts are allowed.
+untyped_calls_exclude = ["pymupdf"]
 
 [[tool.mypy.overrides]]
-module = ["pgvector.*"]
+module = ["pgvector.*", "pymupdf.*", "sentence_transformers.*", "transformers.*", "torch.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -59,7 +63,12 @@ markers = [
   "slow: long-running",
   "llm: hits a real LLM (excluded in CI)",
 ]
-filterwarnings = ["error::DeprecationWarning:samvidhan.*"]
+filterwarnings = [
+  "error::DeprecationWarning:samvidhan.*",
+  # PyMuPDF's SWIG bindings warn on import (pymupdf issue, not ours).
+  "ignore:builtin type Swig:DeprecationWarning",
+  "ignore:builtin type swigvarlink:DeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["src/samvidhan"]

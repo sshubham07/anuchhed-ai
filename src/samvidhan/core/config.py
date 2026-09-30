@@ -7,7 +7,7 @@ literals in code (AGENTS.md rule 5, standards §2).
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, PostgresDsn, SecretStr, field_validator
+from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["dev", "staging", "prod"]
@@ -36,9 +36,7 @@ class Settings(BaseSettings):
     )
 
     # ---- Database ----
-    database_url: SecretStr = SecretStr(
-        "postgresql+asyncpg://samvidhan:samvidhan@localhost:5433/samvidhan"
-    )
+    database_url: SecretStr  # required, from env only (no credentialed default)
     db_pool_size: int = Field(default=5, ge=1)
     db_max_overflow: int = Field(default=5, ge=0)
     db_connect_timeout_s: float = Field(default=5.0, gt=0)
@@ -84,6 +82,13 @@ class Settings(BaseSettings):
 
     # ---- Ingestion ----
     chunker_version: str = "v1"
+    embed_batch_size: int = Field(default=16, ge=1)
+    embed_max_length: int = Field(default=1024, ge=16)
+    ingest_min_text_page_ratio: float = Field(default=0.9, gt=0, le=1)
+    chunk_max_tokens: int = Field(default=800, ge=100)
+    chunk_target_min_tokens: int = Field(default=300, ge=1)
+    chunk_target_max_tokens: int = Field(default=700, ge=50)
+    schedule7_entries_per_chunk: int = Field(default=10, ge=1)
 
     # ---- Retrieval ----
     dense_k: int = 20
@@ -127,6 +132,21 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _chunk_limits_are_ordered(self) -> "Settings":
+        """min < max ≤ split threshold ≤ embedder limit, or chunks get oddly split / truncated."""
+        if not (
+            self.chunk_target_min_tokens
+            < self.chunk_target_max_tokens
+            <= self.chunk_max_tokens
+            <= self.embed_max_length
+        ):
+            raise ValueError(
+                "need CHUNK_TARGET_MIN_TOKENS < CHUNK_TARGET_MAX_TOKENS <= CHUNK_MAX_TOKENS"
+                " <= EMBED_MAX_LENGTH"
+            )
+        return self
 
     @property
     def database_dsn(self) -> str:

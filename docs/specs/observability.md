@@ -59,7 +59,15 @@ Two stages:
 | `budget_near_cap` | WARNING | `model`, `used_today`, `cap` |
 | `rate_limited` | INFO | `scope` (`session` / `ip`) |
 | `request_failed` | ERROR | `error_code`, `exc_info` |
-| `ingestion_*` | INFO | `ingestion_started/completed/validation_failed` with counts |
+| `ingestion_started` | INFO | `pdf`, `sha256`, `chunker_version`, `embed_model` |
+| `ingestion_stage_completed` | INFO | `stage`, `count`, `duration_ms` |
+| `ingestion_skipped_existing` | INFO | `document_id` |
+| `ingestion_orphan_marker` | WARNING | `page`, `n` |
+| `ingestion_validation_failed` | ERROR | `missing`, `duplicates`, `unexpected` |
+| `ingestion_completed` | INFO | `document_id`, `n_chunks`, `duration_ms`, `activated` |
+| `model_downloaded` | INFO | `model`, `path`, `size_mb` |
+| `ingestion_invalid_source` | ERROR | `error` (not a text PDF, body start not found, model missing) |
+| `document_activated` | INFO | `document_id` |
 | `app_started` / `app_stopped` | INFO | `log_level`, `log_format` (start only) |
 | `http_request_completed` | INFO (DEBUG for `/healthz`, `/readyz`) | `method`, `path`, `status_code`, `duration_ms` |
 | `readiness_check_failed` | WARNING | `check`, `error_type` |

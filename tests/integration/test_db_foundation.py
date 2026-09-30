@@ -73,7 +73,7 @@ def test_readyz_against_real_database(database_url: str, settings: Settings) -> 
 
 
 def test_readyz_when_database_unreachable(settings: Settings) -> None:
-    unreachable = "postgresql+asyncpg://samvidhan:samvidhan@127.0.0.1:1/samvidhan"
+    unreachable = "postgresql+asyncpg://test:test@127.0.0.1:1/samvidhan"
     app = create_app(settings.model_copy(update={"database_url": SecretStr(unreachable)}))
     with TestClient(app) as client:
         response = client.get("/readyz")

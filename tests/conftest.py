@@ -19,6 +19,12 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(getattr(pytest.mark, parts[0]))
 
 
+@pytest.fixture(autouse=True)
+def _database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`DATABASE_URL` is required and has no default; give tests a dummy one."""
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:1/test")
+
+
 @pytest.fixture
 def settings() -> Settings:
     """Settings isolated from the developer's `.env`."""

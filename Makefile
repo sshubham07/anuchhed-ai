@@ -6,7 +6,7 @@ COMPOSE := docker compose
 PDF ?= data/raw/constitution.pdf
 API_PORT ?= 8000
 
-.PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui ingest \
+.PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
         lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean
 
 help: ## Show this help
@@ -27,7 +27,7 @@ down: ## Stop the stack (keeps the data volume)
 	$(COMPOSE) down
 
 db-shell: ## psql into the database
-	$(COMPOSE) exec db psql -U samvidhan -d samvidhan
+	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 db-logs: ## Follow database logs
 	$(COMPOSE) logs -f db
@@ -49,8 +49,11 @@ run: ## API with auto-reload on :8000
 ui: ## Streamlit UI on :8501 (Phase 6)
 	@if [ -f ui/app.py ]; then uv run streamlit run ui/app.py; else echo "ui/app.py not implemented yet (Phase 6)"; fi
 
-ingest: ## Ingest the Constitution PDF: make ingest PDF=path.pdf (Phase 1)
-	uv run python -m samvidhan.ingestion.cli ingest $(PDF)
+models: ## Download local models (bge-m3 embeddings) into the HF cache; RERANK=1 adds the reranker
+	uv run python -m samvidhan.ingestion.models download $(if $(RERANK),--rerank,)
+
+ingest: ## Ingest the PDF: make ingest [PDF=path.pdf] [ARGS="--activate" | ARGS="--dry-run"]
+	uv run python -m samvidhan.ingestion.cli ingest $(PDF) $(ARGS)
 
 ## ---- Quality ----
 lint: ## ruff lint + format check + mypy
