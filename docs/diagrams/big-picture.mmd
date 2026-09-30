@@ -1,0 +1,14 @@
+flowchart TB
+    subgraph ING ["① Chunking & storing — built ✓"]
+        direction LR
+        PDF[/"📕 Official PDF<br/>402 pages"/] ==> CH["📄 <b>Parse · chunk · embed</b><br/>one chunk per Article"]:::done ==> DB[("🐘 Postgres + pgvector<br/><b>702 chunks</b>")]:::done
+    end
+    subgraph ASK ["③ ④ Answering a question — to build"]
+        direction LR
+        Q(["🙋 Question"]) --> R["🔀 <b>④ Router LLM</b><br/>rewrite · classify"]:::todo --> S["🔎 <b>③ Hybrid search</b><br/>vector + full-text"]:::todo --> RR["⚖️ <b>③ Reranker</b><br/>best 5 chunks"]:::todo --> A["🤖 <b>④ Answer LLM</b><br/>only from chunks"]:::todo --> C(["💬 Answer +<br/>Article citations"])
+    end
+    ING -.->|"searched by"| ASK
+    classDef done fill:#2ea44f,color:#fff,stroke:#1b7f3b,stroke-width:2px
+    classDef todo fill:#eaeef2,color:#24292f,stroke:#d0d7de
+    style ING fill:#f0fff4,stroke:#2ea44f
+    style ASK fill:#f6f8fa,stroke:#d0d7de

@@ -1,0 +1,17 @@
+flowchart TB
+    subgraph U ["⚡ Unit · 85 tests (56 ingestion) · 0.5 s"]
+        direction LR
+        u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"] ~~~ u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"]
+    end
+    subgraph I ["🐳 Integration · real Postgres in Docker"]
+        direction LR
+        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"]
+    end
+    subgraph R ["📕 Real PDF · slow"]
+        direction LR
+        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"]
+    end
+    U --> I --> R
+    style U fill:#dafbe1,stroke:#2ea44f
+    style I fill:#ddf4ff,stroke:#0969da
+    style R fill:#fbefff,stroke:#8250df

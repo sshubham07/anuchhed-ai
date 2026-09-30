@@ -1,0 +1,10 @@
+flowchart LR
+    S{{"Segment"}} --> P["📜 Preamble"] --> P1["1 chunk"]
+    S --> A["⚖️ Article"] --> L{"> 800<br/>tokens?"}
+    L -->|no| A1["1 chunk"]
+    L -->|yes| A2["split at clauses<br/>300–700 each<br/>header repeated"]
+    S --> O["🚫 Omitted Article"] --> O1["1 chunk<br/>is_omitted ✓"]
+    S --> SC["📋 Seventh Schedule"] --> SC1["10 entries<br/>per chunk"]
+    S --> OS["📑 Other Schedules<br/>& Appendices"] --> OS1["packed by<br/>paragraph"]
+    style A2 fill:#fff8c5
+    style O1 fill:#ffebe9

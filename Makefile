@@ -7,7 +7,7 @@ PDF ?= data/raw/constitution.pdf
 API_PORT ?= 8000
 
 .PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
-        lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean
+        lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean diagrams
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -86,6 +86,11 @@ eval-router: ## Router accuracy (Phase 4)
 
 eval-full: ## Router + retrieval + RAGAS (Phase 7)
 	uv run python -m eval.run --suite full
+
+diagrams: ## Render README diagrams (docs/diagrams/*.mmd → .svg; needs Node)
+	@for f in docs/diagrams/*.mmd; do \
+		npx -y @mermaid-js/mermaid-cli -q -c docs/diagrams/mermaid.config.json -b white -i $$f -o $${f%.mmd}.svg; \
+	done
 
 clean: ## Remove caches (never data or volumes)
 	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov .coverage

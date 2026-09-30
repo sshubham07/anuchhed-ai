@@ -1,0 +1,15 @@
+flowchart TB
+    subgraph ROW1 [" "]
+        direction LR
+        P1["📄 <b>1 · Chunk & store in DB</b><br/>PDF → 702 chunks → pgvector<br/>✅ done"]:::done ==> P2["🎯 <b>2 · Eval harness</b><br/>golden Q&A set · metrics<br/>⏳ next"]:::next ==> P3["🔎 <b>3 · Query & retrieval</b><br/>vector + full-text + rerank"]:::todo ==> P4["🤖 <b>4 · LLM & router</b><br/>answers with citations"]:::todo
+    end
+    subgraph ROW2 [" "]
+        direction LR
+        P5["💬 <b>5 · Chat API</b><br/>sessions · memory"]:::todo ==> P6["🖥️ <b>6 · UI</b><br/>Streamlit chat"]:::todo ==> P7["🚀 <b>7 · v1.0 release</b><br/>full eval · hardening"]:::todo
+    end
+    ROW1 ==> ROW2
+    classDef done fill:#2ea44f,color:#fff,stroke:#1b7f3b,stroke-width:2px
+    classDef next fill:#f9c513,color:#000,stroke:#b08800,stroke-width:2px
+    classDef todo fill:#eaeef2,color:#57606a,stroke:#d0d7de
+    style ROW1 fill:none,stroke:none
+    style ROW2 fill:none,stroke:none

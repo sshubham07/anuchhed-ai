@@ -1,0 +1,14 @@
+{
+  "theme": "default",
+  "themeVariables": {
+    "fontSize": "18px",
+    "fontFamily": "-apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+  },
+  "flowchart": {
+    "htmlLabels": true,
+    "nodeSpacing": 40,
+    "rankSpacing": 50,
+    "padding": 14,
+    "wrappingWidth": 260
+  }
+}

@@ -19,13 +19,92 @@
 
 ## 🗺️ Where we are
 
-```mermaid
-flowchart LR
-    P0["⚙️ 0 · Foundation"]:::done --> P1["📄 1 · Ingestion & chunking"]:::done --> P2["🎯 2 · Eval harness"]:::next --> P3["🔎 3 · Retrieval"]:::todo --> P4["🤖 4 · LLM & router"]:::todo --> P5["💬 5 · Chat API"]:::todo --> P6["🖥️ 6 · UI"]:::todo --> P7["🚀 7 · v1.0"]:::todo
-    classDef done fill:#2ea44f,color:#fff,stroke:#1b7f3b
-    classDef next fill:#f9c513,color:#000,stroke:#b08800
-    classDef todo fill:#eaeef2,color:#57606a,stroke:#d0d7de
-```
+<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (next) → 3 Query & retrieval → 4 LLM & router → 5 Chat API → 6 UI → 7 v1.0"></a>
+
+<sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
+
+<details>
+<summary>✅ <b>1 · Chunking & storing in DB</b> — done</summary>
+
+1. ⚙️ Project setup — config, logging, Docker Postgres + pgvector, migrations, FastAPI health checks
+2. 📕 Official PDF (edition as on 1 May 2024) + local models (`make models`)
+3. 🔤 Extract text rows with font size, bold and position (PyMuPDF)
+4. 🧹 Clean — drop running headers and page numbers
+5. 📝 Footnotes — attach 754 amendment notes
+6. 🧱 Segment — Part › Chapter › Article / Schedule / Appendix
+7. ✂️ Chunk — one chunk per Article, long ones split at clauses
+8. ✅ Validate — 506 / 506 Articles, none missing or duplicated
+9. 🧠 Embed with bge-m3 (1024-d)
+10. 🐘 Store in Postgres — vector + full-text index, idempotent re-runs
+11. 🧪 Tests — unit, integration and real-PDF runs (102 passing)
+
+</details>
+
+<details>
+<summary>⏳ <b>2 · Eval harness</b> — next</summary>
+
+1. ✍️ Hand-write 60 golden Q&A cases
+2. 🤖 Generate +90 synthetic cases, human-reviewed
+3. 💬 20 multi-turn conversations
+4. ✂️ Dev / test split (70 / 30)
+5. 📏 Metrics — Recall@k, Hit@1, MRR, nDCG
+6. 📊 `eval.run --suite retrieval` with reports and baseline compare
+7. 🔁 CI job on every PR
+
+</details>
+
+<details>
+<summary>⬜ <b>3 · Query & retrieval</b></summary>
+
+1. 🧭 Dense search — query embedding + HNSW cosine
+2. 🔤 Lexical search — Postgres full-text
+3. 🔀 Fuse both lists with RRF
+4. 🎯 Exact lookup — "Article 21A" → that chunk
+5. ⚖️ Rerank with bge-reranker (15 → top 5)
+6. 🧪 Ablation runs and confidence threshold tuning
+
+</details>
+
+<details>
+<summary>⬜ <b>4 · LLM & router</b></summary>
+
+1. 🔌 LiteLLM client — Groq primary, Gemini fallback, every call logged
+2. 🔀 Router — rewrites the question and picks the route
+3. 🔍 HyDE and multi-part question splitting
+4. 🤖 Answer prompt — answers only from retrieved chunks
+5. 📌 Citation check against retrieved Articles
+6. 🕸️ LangGraph pipeline wiring the steps together
+
+</details>
+
+<details>
+<summary>⬜ <b>5 · Chat API</b></summary>
+
+1. 🗂️ Sessions, messages and feedback tables
+2. 🧠 Chat memory — last messages + Articles discussed
+3. 📡 `POST /v1/chat` with streaming
+4. 🚦 Rate limits and message size limits
+
+</details>
+
+<details>
+<summary>⬜ <b>6 · UI</b></summary>
+
+1. 💬 Streamlit chat with streaming answers
+2. 📎 Citation chips → full Article text
+3. 👍 Feedback buttons and a debug panel
+
+</details>
+
+<details>
+<summary>⬜ <b>7 · v1.0 release</b></summary>
+
+1. 📊 Full eval with RAGAS on the test split
+2. 🏋️ Load test and failure drills
+3. 🔒 Security pass
+4. 🏷️ Tag `v1.0.0`
+
+</details>
 
 <sub>📋 [Full plan](docs/plans/implementation-plan.md) · 🏛️ [Design (HLD)](docs/design/HLD.md) · 🧭 [Decisions (ADRs)](docs/adr/README.md)</sub>
 
@@ -33,13 +112,7 @@ flowchart LR
 
 ## 🧩 The big picture
 
-```mermaid
-flowchart LR
-    PDF[/"📕 Official PDF<br/>402 pages"/] ==> ING["📄 Ingestion<br/><b>built ✓</b>"]:::done ==> DB[("🐘 Postgres + pgvector<br/>702 chunks")]:::done
-    Q(["🙋 Question"]) --> R["🔀 Router LLM"] --> S["🔎 Hybrid search<br/>vector + full-text"] --> RR["⚖️ Reranker"] --> A["🤖 Answer LLM"] --> C(["💬 Answer + citations"])
-    DB -.-> S
-    classDef done fill:#2ea44f,color:#fff
-```
+<a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="100%" alt="Big picture: ① PDF is chunked and stored in pgvector; ③④ a question goes through router, hybrid search, reranker and answer LLM"></a>
 
 ---
 
@@ -47,21 +120,7 @@ flowchart LR
 
 > **One chunk per Article** — the Constitution's own structure, not fixed-size windows. <sub>[Why? → ADR-0001](docs/adr/0001-structure-aware-chunking.md)</sub>
 
-```mermaid
-flowchart TD
-    A["📕 PDF<br/><b>402 pages</b>"] -->|"PyMuPDF · 2 s"| B["🔤 Extract<br/><b>14,601 rows</b><br/>font size · bold · position"]
-    B --> C["🧹 Clean<br/><b>12,948 body rows</b><br/>headers & page numbers dropped"]
-    C --> D["📝 Footnotes<br/><b>754 amendment notes</b>"]
-    D --> E["🧱 Segment<br/><b>525 segments</b><br/>Part › Chapter › Article"]
-    E --> F["✂️ Chunk<br/><b>702 chunks</b><br/>~300 tokens avg"]
-    F --> G{"✅ Validate<br/>506 / 506 Articles"}
-    G -->|pass| H["🧠 Embed · bge-m3<br/><b>702 × 1024-d</b> · 97 s"]
-    G -->|fail| X["⛔ Stop<br/>nothing stored"]
-    H --> I[("🐘 Postgres<br/>vector + full-text index")]
-    style G fill:#fff8c5,stroke:#b08800
-    style X fill:#ffebe9,stroke:#cf222e
-    style I fill:#ddf4ff,stroke:#0969da
-```
+<a href="docs/diagrams/chunking-pipeline.svg"><img src="docs/diagrams/chunking-pipeline.svg" width="100%" alt="Chunking pipeline: PDF → extract → clean → footnotes → segment → chunk → validate → embed → Postgres"></a>
 
 <details>
 <summary>🔍 <b>Click — what each step does</b></summary>
@@ -82,38 +141,11 @@ flowchart TD
 
 ### ✂️ Chunking rules
 
-```mermaid
-flowchart LR
-    S{{"Segment"}} --> P["📜 Preamble"] --> P1["1 chunk"]
-    S --> A["⚖️ Article"] --> L{"> 800<br/>tokens?"}
-    L -->|no| A1["1 chunk"]
-    L -->|yes| A2["split at clauses<br/>300–700 each<br/>header repeated"]
-    S --> O["🚫 Omitted Article"] --> O1["1 chunk<br/>is_omitted ✓"]
-    S --> SC["📋 Seventh Schedule"] --> SC1["10 entries<br/>per chunk"]
-    S --> OS["📑 Other Schedules<br/>& Appendices"] --> OS1["packed by<br/>paragraph"]
-    style A2 fill:#fff8c5
-    style O1 fill:#ffebe9
-```
+<a href="docs/diagrams/chunking-rules.svg"><img src="docs/diagrams/chunking-rules.svg" width="100%" alt="Chunking rules per segment type"></a>
 
 ### 🔬 Anatomy of one chunk
 
-```mermaid
-flowchart LR
-    subgraph C ["📦 chunk art-21A#0"]
-        direction TB
-        H["🧭 <b>Header</b><br/>Part III › Right to Freedom › Article 21A"]
-        N["📝 <b>Amendment notes</b><br/>Ins. by 86th Amendment Act, 2002"]
-        T["📖 <b>Text</b><br/>The State shall provide free and<br/>compulsory education…"]
-        M["🏷️ <b>Metadata</b><br/>article_no · part · is_omitted · seq"]
-    end
-    H & N & T ==> E["🧠 <b>embed_text</b><br/>→ vector + keyword search"]
-    T ==> D["🖥️ <b>text</b><br/>→ citation panel"]
-    M ==> L["🎯 <b>exact lookup</b><br/>“Article 21A” → this chunk"]
-    style C fill:#f6f8fa,stroke:#d0d7de
-    style E fill:#ddf4ff,stroke:#0969da
-    style D fill:#dafbe1,stroke:#2ea44f
-    style L fill:#fff8c5,stroke:#b08800
-```
+<a href="docs/diagrams/chunk-anatomy.svg"><img src="docs/diagrams/chunk-anatomy.svg" width="100%" alt="Anatomy of one chunk"></a>
 
 ---
 
@@ -123,25 +155,12 @@ flowchart LR
 <tr>
 <td width="50%">
 
-```mermaid
-pie showData title 702 chunks by type
-    "Article" : 549
-    "Schedule" : 133
-    "Appendix" : 19
-    "Preamble" : 1
-```
+<a href="docs/diagrams/chunks-by-type.svg"><img src="docs/diagrams/chunks-by-type.svg" width="100%" alt="702 chunks by type"></a>
 
 </td>
 <td width="50%">
 
-```mermaid
-%%{init: {"themeVariables": {"xyChart": {"plotColorPalette": "#0969da"}}}}%%
-xychart-beta
-    title "Chunk size (tokens)"
-    x-axis ["0", "100", "200", "300", "400", "500", "600", "700"]
-    y-axis "chunks" 0 --> 170
-    bar [100, 159, 142, 111, 58, 52, 67, 13]
-```
+<a href="docs/diagrams/chunk-sizes.svg"><img src="docs/diagrams/chunk-sizes.svg" width="100%" alt="Chunk size histogram"></a>
 
 </td>
 </tr>
@@ -156,25 +175,7 @@ xychart-beta
 
 ## 🧪 How it was tested
 
-```mermaid
-flowchart TB
-    subgraph U ["⚡ Unit · 85 tests (56 ingestion) · 0.5 s"]
-        direction LR
-        u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"] ~~~ u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"]
-    end
-    subgraph I ["🐳 Integration · real Postgres in Docker"]
-        direction LR
-        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"]
-    end
-    subgraph R ["📕 Real PDF · slow"]
-        direction LR
-        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"]
-    end
-    U --> I --> R
-    style U fill:#dafbe1,stroke:#2ea44f
-    style I fill:#ddf4ff,stroke:#0969da
-    style R fill:#fbefff,stroke:#8250df
-```
+<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit, integration, real PDF"></a>
 
 ### ✅ Results
 
