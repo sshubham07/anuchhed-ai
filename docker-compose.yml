@@ -1,0 +1,47 @@
+# Samvidhan local stack (HLD §18, spec: foundation §3.1).
+# Project name is pinned so containers/volumes never collide with other local compose projects.
+# DB host port defaults to 5433 because 5432 is often used by another project's Postgres.
+name: samvidhan
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: samvidhan
+      POSTGRES_PASSWORD: samvidhan
+      POSTGRES_DB: samvidhan
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U samvidhan -d samvidhan"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    profiles: ["app"]           # `docker compose --profile app up`; `make up` starts only the db
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://samvidhan:samvidhan@db:5432/samvidhan
+      LOG_FORMAT: json
+      HF_HOME: /models/hf
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/models/hf
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ui: added in P6.6 (Streamlit, API_BASE_URL=http://api:8000)
+
+volumes:
+  pgdata:
+  hf_cache:

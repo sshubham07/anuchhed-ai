@@ -7,7 +7,7 @@ A conversational RAG service that answers questions about the **Constitution of 
 text, with Article-level citations. Text in, text out.
 
 > **Read before any work:** `docs/design/HLD.md` (architecture, limits) and `docs/adr/` (decisions).
-> Component detail: `docs/specs/evaluation.md`, `docs/specs/observability.md`.
+> Component detail: `docs/specs/foundation.md`, `docs/specs/evaluation.md`, `docs/specs/observability.md`.
 > Execution order: `docs/plans/implementation-plan.md`.
 > Coding rules: `docs/standards/engineering-standards.md`.
 
@@ -59,10 +59,10 @@ data/             # raw PDF (gitignored), processed chunks JSONL
 
 ```bash
 uv sync                                   # install
-docker compose up -d db                   # Postgres + pgvector
+docker compose up -d --wait db            # Postgres + pgvector on host port 5433 (or: make up)
 uv run alembic upgrade head               # migrations
 uv run python -m samvidhan.ingestion.cli ingest data/raw/constitution.pdf
-uv run uvicorn samvidhan.api.main:app --reload
+uv run uvicorn --factory samvidhan.api.main:create_app --reload   # or: make run
 uv run streamlit run ui/app.py
 uv run pytest -m "not slow"               # fast tests
 uv run pytest                             # all tests

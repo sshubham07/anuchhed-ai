@@ -60,6 +60,9 @@ Two stages:
 | `rate_limited` | INFO | `scope` (`session` / `ip`) |
 | `request_failed` | ERROR | `error_code`, `exc_info` |
 | `ingestion_*` | INFO | `ingestion_started/completed/validation_failed` with counts |
+| `app_started` / `app_stopped` | INFO | `log_level`, `log_format` (start only) |
+| `http_request_completed` | INFO (DEBUG for `/healthz`, `/readyz`) | `method`, `path`, `status_code`, `duration_ms` |
+| `readiness_check_failed` | WARNING | `check`, `error_type` |
 
 Example line:
 

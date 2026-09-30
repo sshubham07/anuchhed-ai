@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Data: raw PDF and processed output are not committed
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Eval caches and generated reports
+eval/.cache/
+eval/reports/*.json
+eval/reports/*_samples.csv
+
+# Model caches
+.cache/
+models/
+hf_cache/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

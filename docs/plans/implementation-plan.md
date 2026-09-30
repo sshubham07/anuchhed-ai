@@ -24,22 +24,24 @@
 ## Phase 0 — Project foundation
 
 **Goal:** an empty but production-shaped repo that lints, type-checks, tests and runs.
+**Spec:** `docs/specs/foundation.md` · observability.md §1.
 
-- [ ] P0.1 `uv init`; `pyproject.toml` with ruff, mypy (strict on `src/`), pytest config and markers
+- [x] P0.1 `uv init`; `pyproject.toml` with ruff, mypy (strict on `src/`), pytest config and markers
       (standards §1, §8)
-- [ ] P0.2 Package skeleton `src/samvidhan/{api,core,ingestion,retrieval,query,generation,memory,llm,db}` per
+- [x] P0.2 Package skeleton `src/samvidhan/{api,core,ingestion,retrieval,query,generation,memory,llm,db}` per
       CLAUDE.md
-- [ ] P0.3 `core/config.py` (pydantic-settings) + `.env.example` with every key from the HLD (models, k values,
+- [x] P0.3 `core/config.py` (pydantic-settings) + `.env.example` with every key from the HLD (models, k values,
       thresholds, windows, rate limits, flags)
-- [ ] P0.4 `core/logging.py` — structlog JSON/console, contextvars, request-id middleware (observability §1)
-- [ ] P0.5 `docker-compose.yml`: `db` (pgvector/pgvector:pg16), `api`, `ui` stubs; HF cache volume (HLD §18)
-- [ ] P0.6 Alembic init + migration 001: `documents`, `chunks` (with HNSW + GIN indexes) (HLD §10)
-- [ ] P0.7 FastAPI app with `/healthz`, `/readyz`, error envelope + `SamvidhanError` (standards §3–4)
+- [x] P0.4 `core/logging.py` — structlog JSON/console, contextvars, request-id middleware (observability §1)
+- [x] P0.5 `docker-compose.yml`: `db` (pgvector/pgvector:pg16, host port 5433), `api` (profile `app`); HF cache
+      volume (HLD §18). `ui` service deferred to P6.6
+- [x] P0.6 Alembic init + migration 001: `documents`, `chunks` (with HNSW + GIN indexes) (HLD §10)
+- [x] P0.7 FastAPI app with `/healthz`, `/readyz`, error envelope + `SamvidhanError` (standards §3–4)
 - [ ] P0.8 GitHub Actions: ruff → mypy → pytest (unit) on PR
-- [ ] P0.9 `.gitignore` (data/raw, .env, eval/.cache, model caches)
+- [x] P0.9 `.gitignore` (data/raw, .env, eval/.cache, model caches)
 - [ ] P0.10 `.pre-commit-config.yaml`: ruff (lint + format), mypy, gitleaks (secret scan), end-of-file/trailing
       whitespace, check-yaml/json
-- [ ] P0.11 `Makefile` targets: `setup`, `up`, `down`, `migrate`, `ingest`, `run`, `ui`, `lint`, `test`,
+- [x] P0.11 `Makefile` targets: `setup`, `up`, `down`, `migrate`, `ingest`, `run`, `ui`, `lint`, `test`,
       `eval-retrieval`, `eval-router`, `eval-full`
 - [ ] P0.12 `SECURITY.md` (how to report issues) and `CHANGELOG.md` (Keep a Changelog format)
 - [ ] P0.13 GitHub: branch protection on `main` (PR required, CI green, CODEOWNERS review, no force-push);

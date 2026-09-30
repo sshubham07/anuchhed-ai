@@ -26,7 +26,7 @@ Streamlit · RAGAS · Docker Compose
 ```bash
 cp .env.example .env        # add GROQ_API_KEY and GEMINI_API_KEY
 make setup                  # uv sync + pre-commit install
-make up && make migrate     # Postgres + pgvector, run migrations
+make up && make migrate     # Postgres + pgvector on localhost:5433, run migrations
 make ingest                 # parse and index the Constitution PDF (data/raw/)
 make run                    # API on :8000
 make ui                     # Streamlit on :8501
