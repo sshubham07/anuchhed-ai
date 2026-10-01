@@ -80,3 +80,10 @@ class CorpusRepository:
             select(func.count()).select_from(Chunk).where(Chunk.document_id == document_id)
         )
         return int(result.scalar_one())
+
+    async def active_version_date(self) -> date | None:
+        """Edition ("as on") date of the active document, shown in the answer disclaimer."""
+        result = await self._session.execute(
+            select(Document.version_date).where(Document.is_active)
+        )
+        return result.scalar_one_or_none()

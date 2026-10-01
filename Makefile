@@ -7,7 +7,8 @@ PDF ?= data/raw/constitution.pdf
 API_PORT ?= 8000
 
 .PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
-        lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean diagrams hooks
+        lint fmt typecheck test test-unit test-integration test-llm eval-retrieval eval-router eval-full \
+        clean diagrams graph ask chat hooks
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -58,6 +59,13 @@ ui: ## Streamlit UI on :8501 (Phase 6)
 models: ## Download local models (bge-m3 embeddings) into the HF cache; RERANK=1 adds the reranker
 	uv run python -m samvidhan.ingestion.models download $(if $(RERANK),--rerank,)
 
+ask: ## Ask the full pipeline: make ask Q="What does Article 21 say?" [ARGS="--fake-llm --debug"]
+	@test -n "$(Q)" || (echo 'usage: make ask Q="your question"' && exit 1)
+	uv run python -m samvidhan.graph.cli $(ARGS) ask "$(Q)"
+
+chat: ## Interactive chat in the terminal (follow-ups keep context) [ARGS="--fake-llm"]
+	uv run python -m samvidhan.graph.cli $(ARGS) chat
+
 ingest: ## Ingest the PDF: make ingest [PDF=path.pdf] [ARGS="--activate" | ARGS="--dry-run"]
 	uv run python -m samvidhan.ingestion.cli ingest $(PDF) $(ARGS)
 
@@ -83,12 +91,15 @@ test-unit: ## Unit tests only (no Docker, no network)
 test-integration: ## Integration tests (testcontainers Postgres)
 	uv run pytest -m integration
 
+test-llm: ## Live LLM tests (needs GROQ_API_KEY / GEMINI_API_KEY in .env)
+	uv run pytest -m llm -rs
+
 ## ---- Eval (docs/specs/evaluation.md) ----
 eval-retrieval: ## Retrieval metrics, no LLM cost (Phase 2)
 	uv run python -m eval.run --suite retrieval --split dev
 
-eval-router: ## Router accuracy (Phase 4)
-	uv run python -m eval.run --suite router
+eval-router: ## Router accuracy on dev — real router LLM, every call logged (needs GROQ_API_KEY)
+	uv run python -m eval.run --suite router --split dev
 
 eval-full: ## Router + retrieval + RAGAS (Phase 7)
 	uv run python -m eval.run --suite full
@@ -97,6 +108,11 @@ diagrams: ## Render README diagrams (docs/diagrams/*.mmd → .svg; needs Node)
 	@for f in docs/diagrams/*.mmd; do \
 		npx -y @mermaid-js/mermaid-cli -q -c docs/diagrams/mermaid.config.json -b white -i $$f -o $${f%.mmd}.svg; \
 	done
+
+graph: ## Export the LangGraph pipeline to Mermaid (docs/design/graph.mmd) and re-render its SVG
+	uv run python -m samvidhan.graph.export docs/design/graph.mmd docs/diagrams/langgraph.mmd
+	npx -y @mermaid-js/mermaid-cli -q -c docs/diagrams/mermaid.config.json -b white \
+		-i docs/diagrams/langgraph.mmd -o docs/diagrams/langgraph.svg
 
 clean: ## Remove caches (never data or volumes)
 	rm -rf .mypy_cache .ruff_cache .pytest_cache htmlcov .coverage

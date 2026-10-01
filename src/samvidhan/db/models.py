@@ -2,10 +2,12 @@
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Computed,
@@ -15,6 +17,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    Numeric,
     Text,
     UniqueConstraint,
     func,
@@ -100,3 +103,33 @@ class Chunk(Base):
     tsv: Mapped[str] = mapped_column(
         TSVECTOR, Computed("to_tsvector('english', embed_text)", persisted=True)
     )
+
+
+class LlmCall(Base):
+    """One row per provider attempt (observability §1.5). Source for usage and the budget guard."""
+
+    __tablename__ = "llm_calls"
+    __table_args__ = (
+        CheckConstraint(
+            "purpose IN ('router','answer','hyde','summary','eval_judge')", name="purpose"
+        ),
+        CheckConstraint("status IN ('ok','error','fallback')", name="status"),
+        Index("ix_llm_calls_created_at", "created_at"),
+        Index("ix_llm_calls_model_created_at", "model", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    request_id: Mapped[str | None] = mapped_column(Text)
+    session_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    purpose: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    prompt_version: Mapped[str | None] = mapped_column(Text)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    ttft_ms: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), server_default=sql_text("0"))
+    status: Mapped[str] = mapped_column(Text)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

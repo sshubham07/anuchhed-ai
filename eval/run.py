@@ -2,6 +2,7 @@
 
     python -m eval.run --suite retrieval --split dev               # gated run, writes a report
     python -m eval.run --suite retrieval --split dev --ablation    # each retrieval mode
+    python -m eval.run --suite router --split dev [--rpm 25]       # real router LLM, logged
 
 Exit code: 0 all gates pass, 1 a gate failed or regressed > 2 pts vs baseline, 2 bad usage.
 """
@@ -37,6 +38,7 @@ from samvidhan.retrieval.types import RETRIEVAL_MODES, RetrievalMode, RetrievalR
 
 REPORTS = Path(__file__).parent / "reports"
 BASELINE = REPORTS / "baseline.json"
+ROUTER_BASELINE = REPORTS / "baseline_router.json"
 REGRESSION_TOLERANCE = 0.02  # evaluation.md §5: fail on a drop of more than 2 points
 
 # evaluation.md §5 retrieval gates: metric → (operator, threshold)
@@ -70,17 +72,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--mode", choices=RETRIEVAL_MODES, default="hybrid_rerank")
     parser.add_argument("--ablation", action="store_true", help="run every mode, write a table")
     parser.add_argument("--out", type=Path, default=REPORTS)
+    parser.add_argument("--rpm", type=float, default=25, help="router suite: max LLM calls/min")
     args = parser.parse_args(argv)
     if args.ablation and args.split != "dev":
         print("--ablation is a tuning tool; run it on --split dev only (evaluation.md §2.5)")
         return EXIT_USAGE
-    if args.suite != "retrieval":
-        print(f"--suite {args.suite} lands in a later phase (router: P4.9, full: P7.3)")
+    if args.suite == "full":
+        print("--suite full lands in a later phase (P7.3)")
         return EXIT_USAGE
 
     settings = get_settings()
     configure_logging(settings.model_copy(update={"log_level": "WARNING"}))
+    if args.suite == "router":
+        return _run_router(settings, args)
     return asyncio.run(_run(settings, args))
+
+
+def _run_router(settings: Settings, args: argparse.Namespace) -> int:
+    from eval import router_suite  # imports eval.run helpers; loaded on demand to avoid a cycle
+
+    if key := router_suite.missing_key(settings):
+        print(f"{key} is not set in .env; the router suite calls the real router model")
+        return EXIT_USAGE
+    report, results = asyncio.run(router_suite.run_router_suite(settings, args))
+    report["gates"] = _gates(
+        report["metrics"], _load_baseline(ROUTER_BASELINE), router_suite.ROUTER_GATES
+    )
+    router_suite.write(args.out, report, results)
+    sys.stdout.write(router_suite.markdown(report))
+    failed = [g for g in report["gates"] if g["status"] != "PASS"]
+    return EXIT_GATE_FAILED if failed else EXIT_OK
 
 
 async def _run(settings: Settings, args: argparse.Namespace) -> int:
@@ -272,10 +293,14 @@ def _confidence(results: Sequence[CaseResult]) -> dict[str, Any]:
     }
 
 
-def _gates(metrics: dict[str, float], baseline: dict[str, Any] | None) -> list[dict[str, Any]]:
+def _gates(
+    metrics: dict[str, float],
+    baseline: dict[str, Any] | None,
+    gates_spec: dict[str, tuple[str, float]] = GATES,
+) -> list[dict[str, Any]]:
     gates = []
     base_metrics = (baseline or {}).get("metrics", {})
-    for name, (op, threshold) in GATES.items():
+    for name, (op, threshold) in gates_spec.items():
         value = metrics.get(name, 0.0)
         base = base_metrics.get(name)
         status = "PASS" if value >= threshold else "FAIL"
@@ -294,8 +319,8 @@ def _gates(metrics: dict[str, float], baseline: dict[str, Any] | None) -> list[d
     return gates
 
 
-def _load_baseline() -> dict[str, Any] | None:
-    return json.loads(BASELINE.read_text()) if BASELINE.exists() else None
+def _load_baseline(path: Path = BASELINE) -> dict[str, Any] | None:
+    return json.loads(path.read_text()) if path.exists() else None
 
 
 def _unique(refs: Sequence[str | None]) -> list[str]:

@@ -44,19 +44,24 @@ Two stages:
 | `chat_request_received` | INFO | `message_len`, `client_ip_hash` |
 | `memory_loaded` | DEBUG | `n_messages`, `has_summary`, `last_articles` |
 | `router_completed` | INFO | `route_type`, `article_refs`, `n_sub_queries`, `use_hyde`, `duration_ms` |
-| `router_fallback` | WARNING | `reason` (`invalid_json` / `timeout`) |
+| `router_fallback` | WARNING | `reason` (`invalid_json` / `truncated` / `llm_unavailable`), `standalone_query` (truncated) |
+| `hyde_failed` | WARNING | `error` (error code, or `empty`) |
 | `retrieval_completed` | INFO | `n_pinned`, `n_dense`, `n_lexical`, `n_candidates`, `duration_ms` |
 | `rerank_completed` | INFO | `top_score`, `final_ids`, `duration_ms` |
 | `low_confidence_retrieval` | WARNING | `top_score`, `threshold`, `standalone_query` (truncated) |
-| `llm_call_completed` | INFO | `purpose`, `provider`, `model`, `input_tokens`, `output_tokens`, `latency_ms`, `ttft_ms`, `status` |
+| `llm_call_completed` | INFO | `purpose`, `provider`, `model`, `input_tokens`, `output_tokens`, `latency_ms`, `ttft_ms`, `status`, `error_code`, `prompt_version` (one per provider attempt) |
 | `llm_fallback` | WARNING | `purpose`, `from_model`, `to_model`, `error_code` |
+| `llm_model_unconfigured` | WARNING | `model`, `purpose` (empty or `<placeholder>` id skipped; once per process) |
+| `llm_call_record_failed` | ERROR | `error` (the `llm_calls` insert failed; the request is unaffected) |
 | `invalid_citation` | WARNING | `cited`, `retrieved_refs` |
+| `answer_without_citation` | WARNING | `route_type` |
 | `limit_applied` | WARNING | `limit` (`sub_queries` / `article_refs` / `context_chunks` / `context_tokens`), `requested`, `allowed` |
 | `answer_truncated` | WARNING | `answer_style`, `max_tokens`, `model` |
 | `input_rejected` | INFO | `reason` (`too_long` / `empty` / `session_full`), `length`, `limit` |
 | `answer_completed` | INFO | `route_type`, `cited_refs`, `low_confidence`, `latency_breakdown` |
 | `summary_updated` | INFO | `folded_messages`, `summary_len`, `duration_ms` |
 | `budget_near_cap` | WARNING | `model`, `used_today`, `cap` |
+| `budget_check_failed` | WARNING | `model`, `error` (fail open) |
 | `rate_limited` | INFO | `scope` (`session` / `ip`) |
 | `request_failed` | ERROR | `error_code`, `exc_info` |
 | `ingestion_started` | INFO | `pdf`, `sha256`, `chunker_version`, `embed_model` |
@@ -95,8 +100,9 @@ A single wrapper `llm/client.py::complete()` / `stream()` around LiteLLM:
 2. On completion, emits `llm_call_completed` and inserts one `llm_calls` row (async, fire-and-forget with error
    logging). Tokens come from the provider usage field. Cost comes from LiteLLM's `completion_cost()` (0 for free
    tiers, but stays correct if we move to a paid model).
-3. On fallback, the failed attempt is recorded with `status='error'`, and the successful one with
-   `status='fallback'`.
+3. **Every provider attempt is one row.** A failed attempt (including a retry) is recorded with
+   `status='error'` and its `error_code`; a success on the primary model with `status='ok'`; a success on a later
+   model with `status='fallback'`. Details: `docs/specs/llm-router-generation.md` §3.3.
 
 **No code path may call an LLM without this wrapper** (reviewed by the `code-reviewer` agent).
 

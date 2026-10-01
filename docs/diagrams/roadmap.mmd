@@ -1,7 +1,7 @@
 flowchart TB
     subgraph ROW1 [" "]
         direction LR
-        P1["📄 <b>1 · Chunk & store in DB</b><br/>PDF → 702 chunks → pgvector<br/>✅ done"]:::done ==> P2["🎯 <b>2 · Eval harness</b><br/>golden Q&A set · metrics<br/>🟡 partial"]:::next ==> P3["🔎 <b>3 · Query & retrieval</b><br/>vector + full-text + rerank<br/>🟡 built · 2 gaps"]:::next ==> P4["🤖 <b>4 · LLM & router</b><br/>answers with citations"]:::todo
+        P1["📄 <b>1 · Chunk & store in DB</b><br/>PDF → 702 chunks → pgvector<br/>✅ done"]:::done ==> P2["🎯 <b>2 · Eval harness</b><br/>golden Q&A set · metrics<br/>🟡 partial"]:::next ==> P3["🔎 <b>3 · Query & retrieval</b><br/>vector + full-text + rerank<br/>🟡 built · 2 gaps"]:::next ==> P4["🤖 <b>4 · LLM & router</b><br/>answers with citations<br/>🟡 built · router eval needs keys"]:::next
     end
     subgraph ROW2 [" "]
         direction LR

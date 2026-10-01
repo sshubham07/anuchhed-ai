@@ -4,8 +4,8 @@
 
 **Ask the Constitution of India anything — get answers cited to the exact Article.**
 
-![Phase](https://img.shields.io/badge/phase-3%20retrieval%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-165%20passing-2ea44f)
+![Phase](https://img.shields.io/badge/phase-4%20LLM%20%26%20router%20built-f9c513)
+![Tests](https://img.shields.io/badge/tests-287%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
@@ -20,7 +20,7 @@
 
 ## 🗺️ Where we are
 
-<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router → 5 Chat API → 6 UI → 7 v1.0"></a>
+<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API → 6 UI → 7 v1.0"></a>
 
 <sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
 
@@ -44,7 +44,7 @@
 <details>
 <summary>🟡 <b>2 · Eval harness</b> — partial (what retrieval needed)</summary>
 
-1. 🟡 67 golden Q&A cases drafted (golden v0.1), review pending
+1. 🟡 67 golden Q&A cases drafted (golden v0.2: 7 router labels fixed), review pending
 2. ⬜ Generate +90 synthetic cases, human-reviewed
 3. ⬜ 20 multi-turn conversations
 4. 🟡 Dev / test split (≈70 / 30) on the drafted set
@@ -68,14 +68,18 @@
 </details>
 
 <details>
-<summary>⬜ <b>4 · LLM & router</b></summary>
+<summary>🟡 <b>4 · LLM & router</b> — built; router eval waits for API keys</summary>
 
-1. 🔌 LiteLLM client — Groq primary, Gemini fallback, every call logged
-2. 🔀 Router — rewrites the question and picks the route
-3. 🔍 HyDE and multi-part question splitting
-4. 🤖 Answer prompt — answers only from retrieved chunks
-5. 📌 Citation check against retrieved Articles
-6. 🕸️ LangGraph pipeline wiring the steps together
+1. ✅ LiteLLM client — Groq primary, Gemini fallback, 1 retry, every attempt logged to `llm_calls`
+2. ✅ Daily budget guard — near a model's cap, switch to the fallback; both capped → "busy"
+3. ✅ Router — rewrites the question, extracts Article refs and picks the route (JSON, falls back to `simple`)
+4. ✅ HyDE for broad questions, sub-question search for multi-part ones
+5. ✅ Answer prompt — answers only from retrieved chunks, streams tokens
+6. ✅ Citation check — citations not in the retrieved text are removed; disclaimer added
+7. ✅ Canned replies for greetings, vague and out-of-scope questions
+8. ✅ LangGraph pipeline + Mermaid export; `make ask` / `make chat` from the terminal
+9. ⏳ Router eval on dev (`make eval-router`) — needs `GROQ_API_KEY`
+10. 🟡 Long-question mode — answer styles and the 70B router in; long context limits not yet
 
 </details>
 
@@ -115,6 +119,73 @@
 ## 🧩 The big picture
 
 <a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="100%" alt="Big picture: ① PDF is chunked and stored in pgvector; ③④ a question goes through router, hybrid search, reranker and answer LLM"></a>
+
+---
+
+## 🤖 How a question is answered
+
+> **One small LLM call routes, one large LLM call answers** — a fixed LangGraph pipeline, not an agent.
+> <sub>[Why? → ADR-0003](docs/adr/0003-deterministic-router-not-agent.md) · [ADR-0011](docs/adr/0011-langgraph-orchestration.md) · [spec](docs/specs/llm-router-generation.md)</sub>
+
+<a href="docs/diagrams/langgraph.svg"><img src="docs/diagrams/langgraph.svg" width="60%" alt="LangGraph pipeline: load_memory → route → retrieve / hyde → retrieve / decompose / respond_template → generate → validate_citations → save_turn"></a>
+
+<sub>Drawn from the compiled graph itself (`make graph`), so it can't drift from the code.</sub>
+
+| Route | Example | What happens | LLM calls |
+|:--|:--|:--|:-:|
+| `article_lookup` | "explain art. 21-A" | Article fetched by number, plus search for context | 2 |
+| `simple` | "Who appoints the Chief Election Commissioner?" | Hybrid search + rerank | 2 |
+| `conceptual` | "How does the Constitution protect minorities?" | HyDE passage for the vector search | 3 |
+| `multi_part` | "Compare Article 32 and 226" | One search per sub-question, merged | 2 |
+| `ambiguous` · `out_of_scope` · `chitchat` | "What are my rights?" · "BNS theft?" · "hi" | Canned reply, no search | 1 |
+
+<details>
+<summary>🛡️ <b>Click — what keeps answers honest</b></summary>
+
+| Guard | How |
+|:--|:--|
+| Only the retrieved text | The answer prompt gets numbered excerpts and must cite them as `[Art. 21]` |
+| Hallucinated citations | Any `[Art. N]` not among the retrieved chunks is removed and logged (`invalid_citation`) |
+| Nothing found | No answer LLM call — a "not covered" reply instead |
+| Weak match | The prompt is told retrieval is weak and must say the text may not cover it |
+| Prompt injection | Excerpts and the user's message are data; the router sends "ignore your rules" to `out_of_scope` |
+| Provider down / bad key | 1 retry → Gemini fallback → `LLM_UNAVAILABLE` |
+| Free-tier quota | Usage counted from `llm_calls`; near the cap → fallback model → "busy" |
+| Every call traceable | One `llm_calls` row per attempt: model, tokens, latency, TTFT, status, prompt version |
+
+</details>
+
+<details>
+<summary>💻 <b>Click — try it from the terminal</b></summary>
+
+```bash
+make ask Q="What does Article 21 say?"              # needs GROQ_API_KEY in .env
+make ask Q="Can police arrest me?" ARGS=--fake-llm  # no keys: scripted LLM, real search
+make chat                                           # follow-ups keep the context
+```
+
+```text
+Q: What does Article 21 say?
+A: (fake LLM — no model was called) The most relevant provisions retrieved are:
+- Protection of life and personal liberty: "… No person shall be deprived of his life or personal liberty
+  except according to procedure established by law.…" [Art. 21]
+
+_Informational only, based on the text of the Constitution of India (as on 1 May 2024). Not legal advice._
+
+Citations:
+  [Art. 21] Protection of life and personal liberty
+
+route=article_lookup style=brief refs=['21'] fallback=False low_confidence=False
+llm_call purpose=router model=fake/model status=ok …
+llm_call purpose=answer model=fake/model status=ok …
+```
+
+</details>
+
+### 🔀 Router eval
+
+`make eval-router` runs every dev question through the real router (gates: type accuracy ≥ 0.90, refs F1 ≥ 0.95,
+JSON validity ≥ 0.99, answer style ≥ 0.85). **Not run yet — it needs `GROQ_API_KEY` in `.env`.**
 
 ---
 
@@ -177,18 +248,21 @@
 
 ## 🧪 How it was tested
 
-<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit (ingestion, retrieval, eval), integration, real PDF and models"></a>
+<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit (ingestion, retrieval, eval, LLM/router/graph), integration, real PDF and models"></a>
 
 ### ✅ Results
 
 | Check | Result |
 |:--|:-:|
-| All tests (unit + integration + real PDF) | 🟢 **165 / 165** |
+| All tests (unit + integration + real PDF) | 🟢 **287 / 287** (+2 live-LLM tests skipped without keys) |
 | Articles found vs Contents list | 🟢 **506 / 506** |
 | Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
 | Chunks over the 1,024-token limit | 🟢 **0** |
 | Every vector 1024-d, unit length | 🟢 |
 | Re-running the same PDF | 🟢 no-op |
+| Every LLM attempt → one `llm_calls` row (FakeLLM over Postgres) | 🟢 |
+| Bad primary key → fallback model | 🟢 (FakeLLM; live check: `make test-llm`) |
+| Graph end to end, all 7 route types (FakeLLM + real Postgres search) | 🟢 |
 | ruff · mypy --strict | 🟢 clean |
 
 <details>
@@ -305,16 +379,19 @@ golden set reaches v1.0.
 ## 🚀 Run it
 
 <details>
-<summary>▶️ <b>Click — 4 commands</b></summary>
+<summary>▶️ <b>Click — 5 commands</b></summary>
 
 ```bash
-make setup                      # install + create .env (set POSTGRES_PASSWORD)
+make setup                      # install + create .env (set POSTGRES_PASSWORD, GROQ_API_KEY, GEMINI_API_KEY)
 make up && make migrate         # Postgres + pgvector on :5433
-make models                     # download bge-m3 (~2.3 GB, once)
+make models RERANK=1            # download bge-m3 + reranker (~4.5 GB, once)
 make ingest ARGS=--activate     # PDF in data/raw/ → 702 chunks in Postgres
+make ask Q="What does Article 21 say?"   # cited answer in the terminal
 ```
 
 `make ingest ARGS=--dry-run` → writes `data/processed/chunks.jsonl` + `ingestion_report.json`, no DB.
+Set the Gemini fallback model ids in `.env` (`ROUTER_FALLBACK_MODEL`, `ANSWER_FALLBACK_MODEL`, …); until then the
+fallback is skipped and logged.
 </details>
 
 ---

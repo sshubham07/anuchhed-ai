@@ -1,4 +1,4 @@
-"""Retrieval metrics (spec: evaluation.md §3.1). Pure functions over ranked ref lists.
+"""Retrieval (evaluation.md §3.1) and router (§3.2) metrics. Pure functions over ref lists.
 
 Input is the ref of each ranked chunk (`21`, `21`, `SCH-7`, …): sub-chunks of one Article share a
 ref. Cut-offs (`k`) apply to chunk positions; a ref counts once, at its first position.
@@ -48,6 +48,18 @@ def ndcg_at_k(
     ideal = sorted(gains.values(), reverse=True)[:k]
     idcg = sum(gain / math.log2(position + 1) for position, gain in enumerate(ideal, start=1))
     return dcg / idcg if idcg else 0.0
+
+
+def set_f1(predicted: Sequence[str], expected: Sequence[str]) -> float:
+    """F1 between two ref sets; both empty is a perfect 1.0 (nothing to extract, none invented)."""
+    got, want = set(predicted), set(expected)
+    if not got and not want:
+        return 1.0
+    overlap = len(got & want)
+    if not overlap:
+        return 0.0
+    precision, recall = overlap / len(got), overlap / len(want)
+    return 2 * precision * recall / (precision + recall)
 
 
 def percentile(values: Sequence[float], pct: float) -> float:

@@ -35,3 +35,19 @@ class InvalidSourceError(SamvidhanError):
     code = "INVALID_SOURCE"
     http_status = 422
     default_message = "The source document cannot be ingested"
+
+
+class LLMUnavailableError(SamvidhanError):
+    """Every configured model failed (after retries and fallback)."""
+
+    code = "LLM_UNAVAILABLE"
+    http_status = 503
+    default_message = "The language model is unavailable right now. Please try again shortly."
+
+
+class LLMBusyError(SamvidhanError):
+    """Every configured model is near its daily budget cap (HLD §8.6)."""
+
+    code = "BUSY"
+    http_status = 503
+    default_message = "The service is busy right now. Please try again later."

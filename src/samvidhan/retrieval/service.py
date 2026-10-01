@@ -73,10 +73,12 @@ class RetrievalService:
         query: str,
         *,
         refs: Sequence[str] = (),
+        dense_query: str | None = None,
         mode: RetrievalMode = "hybrid_rerank",
         lexical_match_all: bool = False,
     ) -> RetrievalResult:
-        """`mode` and `lexical_match_all` exist for the ablation; production uses the defaults."""
+        """`dense_query` (a HyDE passage) replaces `query` for the dense leg only; lexical search
+        and rerank keep `query`. `mode` and `lexical_match_all` exist for the ablation."""
         settings = self._settings
         started = time.perf_counter()
         latency: dict[str, int] = {}
@@ -95,7 +97,7 @@ class RetrievalService:
             if mode == "lexical":
                 return []
             leg_started = time.perf_counter()
-            vectors = await asyncio.to_thread(self._embedder.embed, [query])
+            vectors = await asyncio.to_thread(self._embedder.embed, [dense_query or query])
             latency["embed"] = _ms(leg_started)
             leg_started = time.perf_counter()
             async with self._session_factory() as session:
@@ -164,6 +166,11 @@ class RetrievalService:
                 standalone_query=query[:_QUERY_LOG_CHARS],
             )
         latency["total"] = _ms(started)
+        trace = self._trace(
+            mode, valid_refs, pinned, candidates, chunks, top_score, low_confidence, latency
+        )
+        if dense_query:
+            trace["dense_query"] = "hyde"
         return RetrievalResult(
             chunks=chunks,
             candidates=candidates,
@@ -172,9 +179,7 @@ class RetrievalService:
             top_score=top_score,
             low_confidence=low_confidence,
             latency_ms=latency,
-            trace=self._trace(
-                mode, valid_refs, pinned, candidates, chunks, top_score, low_confidence, latency
-            ),  # fmt: skip
+            trace=trace,
         )
 
     async def _rerank(

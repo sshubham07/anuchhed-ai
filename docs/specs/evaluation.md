@@ -66,7 +66,7 @@ eval/fixtures/
 |-------|---------|
 | `split` | `dev` (use freely while tuning) or `test` (held out; only for releases) — ~70/30 |
 | `category` | Coverage bucket (§2.4) |
-| `expected_type` | Router label |
+| `expected_type` | Router label — one of the seven router types (validated on load; golden v0.2) |
 | `expected_refs` | **Must** appear in the retrieved top-k (recall is computed on these). Canonical ids: Articles `21`, `21A`; Schedules `SCH-7`; Preamble `PREAMBLE` |
 | `acceptable_refs` | Also relevant; not required, not penalized |
 | `question_refs` | Refs the question names explicitly (canonical ids), e.g. `["21A"]` for "explain art. 21-A". Optional; defaults to `[]`. The retrieval suite passes them as pinned refs (a perfect router); the router suite scores `article_refs` F1 against them |
@@ -266,7 +266,10 @@ uv run python -m eval.run --suite full      --split test    # router + answer + 
 - Per-question scores (every metric for every case) are saved as `<run_id>_samples.csv` for debugging.
 - The Streamlit **Eval** page (plan P7.10) shows the latest run vs thresholds, the trend across runs, and failing
   questions.
-- `eval/reports/baseline.json` is the last promoted report (see `/eval`).
+- `eval/reports/baseline.json` is the last promoted retrieval report and `baseline_router.json` the last promoted
+  router report (see `/eval`).
+- The router suite calls the real router model (every call logged to `llm_calls`), paced by `--rpm` (default 25)
+  for free-tier limits, with an empty memory per case. Details: `docs/specs/llm-router-generation.md` §3.11.
 - CI: the retrieval suite runs on every PR against a pre-built fixture DB (ingested once per chunker/embedding
   version and cached). The full suite runs nightly on `main` and posts a summary as a workflow artifact.
 

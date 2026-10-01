@@ -3,20 +3,26 @@ flowchart TB
         direction LR
         u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"] ~~~ u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"]
     end
-    subgraph UR ["🔎 Unit · retrieval & eval  (143 unit tests in all · <1 s)"]
+    subgraph UR ["🔎 Unit · retrieval & eval"]
         direction LR
         v1["🎯 ref lookup 33"] ~~~ v2["🔤 lexical 5"] ~~~ v3["🔀 RRF 4"] ~~~ v4["⚙️ service 9"] ~~~ v5["📏 metrics 5"] ~~~ v6["📚 golden 2"]
     end
+    subgraph UL ["🤖 Unit · LLM, router & graph — FakeLLM, no network  (259 unit tests in all · ~2 s)"]
+        direction LR
+        l1["🔌 LLM client 16"] ~~~ l2["💰 budget 8"] ~~~ l3["🌐 LiteLLM adapter 10"] ~~~ l4["📝 prompts 5"] ~~~ l5["🔀 router 11"] ~~~ l6["🧩 HyDE & split 5"]
+        l7["✍️ answer 8"] ~~~ l8["📌 citations 23"] ~~~ l9["🧠 memory 4"] ~~~ l10["🕸️ graph 17"] ~~~ l11["📏 router eval 9"]
+    end
     subgraph I ["🐳 Integration · real Postgres in Docker"]
         direction LR
-        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"] ~~~ i3["🔎 search legs & service 4"]
+        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"] ~~~ i3["🔎 search legs & service 4"] ~~~ i4["🧾 llm_calls rows & budget 4"] ~~~ i5["🕸️ graph end to end 2"]
     end
     subgraph R ["📕 Real PDF · slow"]
         direction LR
         r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"] ~~~ r4["⚖️ reranker smoke 1"]
     end
-    U --> UR --> I --> R
+    U --> UR --> UL --> I --> R
     style U fill:#dafbe1,stroke:#2ea44f
     style UR fill:#dafbe1,stroke:#2ea44f
+    style UL fill:#dafbe1,stroke:#2ea44f
     style I fill:#ddf4ff,stroke:#0969da
     style R fill:#fbefff,stroke:#8250df

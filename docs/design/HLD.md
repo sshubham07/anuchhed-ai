@@ -2,9 +2,10 @@
 
 - **Status:** Draft v1.0 (awaiting approval)
 - **Owner:** Shubham Kumar Gupta
-- **Last updated:** 2026-09-30
+- **Last updated:** 2026-10-01
 - **Reviewers:** _TBD_ · **Approved by:** _TBD_
 - **Companion docs:** [Evaluation spec](../specs/evaluation.md) · [Observability spec](../specs/observability.md) ·
+  [LLM, router & generation spec](../specs/llm-router-generation.md) ·
   [ADRs](../adr/README.md) · [Implementation plan](../plans/implementation-plan.md) ·
   [Engineering standards](../standards/engineering-standards.md)
 
@@ -270,23 +271,29 @@ Steps B–H run as a **LangGraph** graph (§8.1.1). A–C (HTTP concerns) and I 
           └──────┬──────┘
                  ▼
           ┌─────────────┐   ambiguous / out_of_scope / chitchat
-          │    route    │─────────────────────────────────────► respond_template ──► save_turn ─► END
-          └──────┬──────┘
-                 │ conditional edge on route.type
-   ┌─────────────┼───────────────┬────────────────┐
-   ▼             ▼               ▼                ▼
- lookup     hybrid_search    decompose      hyde ─► hybrid_search
-   │             │               │  (search per sub-query)
-   └─────────────┴───────┬───────┴────────────────┘
-                         ▼
-                      rerank ──(v2: low confidence)──► agent_fallback (bounded loop, ≤ 3 steps)
-                         ▼
-                     generate  (streams tokens)
-                         ▼
-                 validate_citations
-                         ▼
-                     save_turn ──► END
+          │    route    │─────────────────────────────────────► respond_template ──┐
+          └──────┬──────┘                                                          │
+                 │ conditional edge on route.type                                  │
+   ┌─────────────┼───────────────────────┐                                         │
+   ▼             ▼                       ▼                                         │
+lookup / simple  conceptual: hyde ─►  multi_part: decompose                        │
+   │             retrieve             (retrieve per sub-query, merge)              │
+   └─► retrieve ─────┴───────┬───────────┘                                         │
+   (pinned + hybrid + rerank, one RetrievalService call)                           │
+                             ▼        (v2: low confidence ─► agent_fallback, ≤ 3 steps)
+                         generate  (streams tokens; no chunks → "not covered", no LLM)
+                             ▼                                                     │
+                     validate_citations (+ disclaimer)                             │
+                             ▼                                                     │
+                         save_turn ◄───────────────────────────────────────────────┘
+                             ▼
+                            END
 ```
+
+The rendered graph is generated from the compiled `StateGraph` (`make graph` →
+[`docs/design/graph.mmd`](graph.mmd), [SVG](../diagrams/langgraph.svg)). Rerank is not a separate node: retrieval
+and rerank are one `RetrievalService.retrieve` call (retrieval spec §3.1), and `article_lookup` and `simple` share
+the `retrieve` node (lookup = refs pinned + hybrid context). Detail: `docs/specs/llm-router-generation.md`.
 
 **State (`graph/state.py`):**
 
@@ -350,8 +357,8 @@ Rules:
   sub-query.
 - `answer_style`: `brief` by default; `detailed` when the user asks to explain/discuss/analyse at length or the
   query is long; `exam` when the user asks for an answer in exam format ("in 250 words", "UPSC mains answer").
-- **Failure fallback:** invalid JSON or a timeout → `type="simple"`, `standalone_query=<raw message>`, and log
-  `router_fallback` (WARNING).
+- **Failure fallback:** invalid JSON, a truncated reply, or the LLM unavailable after retry and fallback →
+  `type="simple"`, `standalone_query=<raw message>`, and log `router_fallback` (WARNING).
 
 Branch table:
 

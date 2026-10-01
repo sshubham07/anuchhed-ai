@@ -141,28 +141,31 @@ retrieval p95 ≤ 300 ms and rerank p95 ≤ 800 ms locally.
 ## Phase 4 — LLM layer, router & answer generation
 
 **Goal:** grounded, cited answers through a deterministic pipeline.
-**Spec:** HLD §6, §8.2, §8.5, §8.6 · observability §1.5.
+**Spec:** `docs/specs/llm-router-generation.md` · HLD §6, §8.2, §8.5, §8.6 · observability §1.5.
 
-- [ ] P4.1 Migration 003: `llm_calls`
-- [ ] P4.2 `llm/client.py` — LiteLLM wrapper (`complete`, `stream`), timeouts, 1 retry, provider fallback,
+- [x] P4.1 Migration 003: `llm_calls`
+- [x] P4.2 `llm/client.py` — LiteLLM wrapper (`complete`, `stream`), timeouts, 1 retry, provider fallback,
       TTFT, `llm_calls` insert, `llm_call_completed` / `llm_fallback` events; `FakeLLM` for tests
-- [ ] P4.3 `llm/budget.py` — daily per-model counter from `llm_calls` vs configured caps; `budget_near_cap`
-- [ ] P4.4 `prompts/router.v1.md` + `query/router.py` — `RouteDecision` Pydantic model, JSON mode, fallback to
+- [x] P4.3 `llm/budget.py` — daily per-model counter from `llm_calls` vs configured caps; `budget_near_cap`
+- [x] P4.4 `prompts/router.v1.md` + `query/router.py` — `RouteDecision` Pydantic model, JSON mode, fallback to
       `simple`
-- [ ] P4.5 `query/hyde.py` and `query/decompose.py` (sub-query retrieval + merge, cap 8)
-- [ ] P4.6 `prompts/answer.v1.md` + `generation/answer.py` — excerpt formatting, streaming, omitted-Article
+- [x] P4.5 `query/hyde.py` and `query/decompose.py` (sub-query retrieval + merge, cap 8)
+- [x] P4.6 `prompts/answer.v1.md` + `generation/answer.py` — excerpt formatting, streaming, omitted-Article
       handling, disclaimer
-- [ ] P4.7 `generation/citations.py` — extract, validate against retrieved refs (incl. `Appendix I–III`), drop
+- [x] P4.7 `generation/citations.py` — extract, validate against retrieved refs (incl. `Appendix I–III`), drop
       invalid, `invalid_citation`
-- [ ] P4.8 Templated replies for `ambiguous`, `out_of_scope`, `chitchat`
-- [ ] P4.9 `eval/run.py --suite router` — type accuracy, refs F1, JSON validity (standalone checks come in
-      Phase 5 with memory)
-- [ ] P4.10 `graph/` — `ChatState`, thin nodes, `StateGraph` with conditional edges on `route.type`
+- [x] P4.8 Templated replies for `ambiguous`, `out_of_scope`, `chitchat`
+- [x] P4.9 `eval/run.py --suite router` — type accuracy, refs F1, JSON validity, answer_style (standalone checks
+      come in Phase 5 with memory). Golden v0.2 relabels ST-057–063 (`expected_type` was the category).
+      **Dev run pending:** needs `GROQ_API_KEY` in `.env` (`make eval-router`)
+- [x] P4.10 `graph/` — `ChatState`, thin nodes, `StateGraph` with conditional edges on `route.type`
       (HLD §8.1.1, ADR-0011); unit tests per node + one compiled-graph test with `FakeLLM`
-- [ ] P4.11 Export the graph to `docs/design/graph.mmd` (Mermaid) via a small script
+- [x] P4.11 Export the graph to `docs/design/graph.mmd` (Mermaid) via a small script
 - [ ] P4.12 Long-query mode (ADR-0012): `answer_style` in `RouteDecision`, 70B router above `LONG_QUERY_CHARS`,
       issue spotting, per-sub-query rerank, long context/answer limits, Gemini for long answers, truncation note;
-      enforce every limit in HLD §13.2 from config
+      enforce every limit in HLD §13.2 from config — **partial:** `answer_style`, 70B router, `MAX_SUB_QUERIES_LONG`,
+      issue-spotting prompt rule, per-style answer model / `max_tokens` / timeout and the truncation note are in;
+      `MAX_CONTEXT_*_LONG` and per-sub-query rerank budgets for long answers are not
 
 **Exit criteria:** router type accuracy ≥ 0.90, refs F1 ≥ 0.95, JSON validity ≥ 0.99 on dev; every LLM call
 produces an `llm_calls` row (integration test); a provider failure falls back cleanly (test with a bad key).

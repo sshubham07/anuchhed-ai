@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from samvidhan.query.router import ROUTE_TYPES
+
 GOLDEN_DIR = Path(__file__).parent / "golden"
 SINGLE_TURN = GOLDEN_DIR / "single_turn.jsonl"
 VERSION_FILE = GOLDEN_DIR / "VERSION"
@@ -41,6 +43,13 @@ class GoldenCase(BaseModel):
         if bad:
             raise ValueError(f"non-canonical refs {bad} (use 21A, SCH-7, PREAMBLE, APP-I)")
         return refs
+
+    @field_validator("expected_type")
+    @classmethod
+    def _router_type(cls, value: str) -> str:
+        if value not in ROUTE_TYPES:
+            raise ValueError(f"expected_type {value!r} is not a router type {ROUTE_TYPES}")
+        return value
 
     @property
     def retrievable(self) -> bool:

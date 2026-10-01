@@ -5,6 +5,7 @@ literals in code (AGENTS.md rule 5, standards §2).
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
@@ -64,21 +65,29 @@ class Settings(BaseSettings):
     # ---- Daily request caps (budget guard) ----
     daily_cap_router_model: int = 14000
     daily_cap_answer_model: int = 1000
+    daily_cap_router_fallback_model: int = Field(default=0, ge=0)  # 0 = no cap
+    daily_cap_answer_fallback_model: int = Field(default=0, ge=0)
     budget_warn_ratio: float = Field(default=0.8, gt=0, le=1)
+    budget_cache_s: float = Field(default=30, ge=0)
 
     # ---- LLM params ----
     answer_temperature: float = 0.1
     answer_max_tokens: int = 700
     answer_max_tokens_long: int = 1500
     router_max_tokens: int = 300
+    router_temperature: float = 0.0
+    hyde_max_tokens: int = 200
     llm_timeout_s: float = 20
     llm_timeout_long_s: float = 45
+    llm_max_retries: int = Field(default=1, ge=0)
+    llm_retry_backoff_s: float = Field(default=0.5, ge=0)
 
     # ---- Prompts ----
     router_prompt_version: str = "router.v1"
     answer_prompt_version: str = "answer.v1"
     summary_prompt_version: str = "summary.v1"
     hyde_prompt_version: str = "hyde.v1"
+    prompts_dir: Path = Path("prompts")
 
     # ---- Ingestion ----
     chunker_version: str = "v1"
@@ -97,6 +106,7 @@ class Settings(BaseSettings):
     rerank_candidates: int = 15
     rerank_max_length: int = 512
     final_k: int = 5
+    sub_query_k: int = Field(default=3, ge=1)  # chunks kept per sub-query (multi_part)
     max_context_chunks: int = 8
     max_context_chunks_long: int = 15
     max_context_tokens: int = 3000
@@ -147,6 +157,19 @@ class Settings(BaseSettings):
                 " <= EMBED_MAX_LENGTH"
             )
         return self
+
+    def daily_caps(self) -> dict[str, int]:
+        """Daily request cap per model (budget guard); a model in two roles gets the lower cap."""
+        caps: dict[str, int] = {}
+        for model, cap in (
+            (self.router_model, self.daily_cap_router_model),
+            (self.answer_model, self.daily_cap_answer_model),
+            (self.router_fallback_model, self.daily_cap_router_fallback_model),
+            (self.answer_fallback_model, self.daily_cap_answer_fallback_model),
+        ):
+            if model and cap > 0:
+                caps[model] = min(cap, caps.get(model, cap))
+        return caps
 
     @property
     def database_dsn(self) -> str:
