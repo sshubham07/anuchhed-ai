@@ -39,7 +39,9 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
 | `--navy` | `#000080` | links, Article badges, citation pills |
 | tricolour rule | 3px saffron → white → green | top of the page only |
 
-- Never use full-flag backgrounds. Saffron and green appear only as accents.
+- Landing page: saffron and green only as accents. **Chat view:** a soft tricolour wash (saffron band at the
+  top, ivory middle, green band at the bottom; about 15% strength) with a faint, slowly turning Ashoka Chakra
+  watermark in the middle. Text always sits on ivory cards or bubbles, so contrast is unaffected.
 - Text on saffron uses `--ink`, never white, to keep AA contrast.
 - Typography:
   - **Noto Serif** for Constitution text: quotes, the drawer, the typewriter.
@@ -49,8 +51,9 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
 - Texture: paper grain from an inline SVG `feTurbulence` at low opacity.
 - Original manuscript-style border: a repeating lotus-bud-and-vine SVG, our own drawing. It's used on the
   landing frame and the drawer header only.
-- Logo: an original mark of an open book whose fanned pages form three bands (saffron, white with a navy edge,
-  green). It is not the National Emblem or the Ashoka Chakra.
+- Logo: the Ashoka Chakra (24 spokes, navy) on a white disc ringed in saffron and green, drawn from geometry in
+  `assets/logo.svg`. The State Emblem (Lion Capital) is **not** used: the State Emblem of India (Prohibition of
+  Improper Use) Act, 2005 restricts it to government use.
 - Dark theme, "night reading": deep ink-navy paper, ivory text, the same accents. It follows
   `prefers-color-scheme` and can be set by a toggle, which is remembered in `localStorage`.
 

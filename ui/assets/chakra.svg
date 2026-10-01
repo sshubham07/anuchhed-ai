@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Ashoka Chakra silhouette, used as a CSS mask (watermark). -->
+  <circle cx="32" cy="32" r="27" fill="none" stroke="#000" stroke-width="2.6"/>
+  <line x1="32.00" y1="26.80" x2="32.00" y2="6.40" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="35.29" cy="7.02" r="1.05" fill="#000"/>
+  <line x1="33.35" y1="26.98" x2="38.63" y2="7.27" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="41.64" cy="8.72" r="1.05" fill="#000"/>
+  <line x1="34.60" y1="27.50" x2="44.80" y2="9.83" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="47.34" cy="12.01" r="1.05" fill="#000"/>
+  <line x1="35.68" y1="28.32" x2="50.10" y2="13.90" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="51.99" cy="16.66" r="1.05" fill="#000"/>
+  <line x1="36.50" y1="29.40" x2="54.17" y2="19.20" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="55.28" cy="22.36" r="1.05" fill="#000"/>
+  <line x1="37.02" y1="30.65" x2="56.73" y2="25.37" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="56.98" cy="28.71" r="1.05" fill="#000"/>
+  <line x1="37.20" y1="32.00" x2="57.60" y2="32.00" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="56.98" cy="35.29" r="1.05" fill="#000"/>
+  <line x1="37.02" y1="33.35" x2="56.73" y2="38.63" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="55.28" cy="41.64" r="1.05" fill="#000"/>
+  <line x1="36.50" y1="34.60" x2="54.17" y2="44.80" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="51.99" cy="47.34" r="1.05" fill="#000"/>
+  <line x1="35.68" y1="35.68" x2="50.10" y2="50.10" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="47.34" cy="51.99" r="1.05" fill="#000"/>
+  <line x1="34.60" y1="36.50" x2="44.80" y2="54.17" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="41.64" cy="55.28" r="1.05" fill="#000"/>
+  <line x1="33.35" y1="37.02" x2="38.63" y2="56.73" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="35.29" cy="56.98" r="1.05" fill="#000"/>
+  <line x1="32.00" y1="37.20" x2="32.00" y2="57.60" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="28.71" cy="56.98" r="1.05" fill="#000"/>
+  <line x1="30.65" y1="37.02" x2="25.37" y2="56.73" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="22.36" cy="55.28" r="1.05" fill="#000"/>
+  <line x1="29.40" y1="36.50" x2="19.20" y2="54.17" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="16.66" cy="51.99" r="1.05" fill="#000"/>
+  <line x1="28.32" y1="35.68" x2="13.90" y2="50.10" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="12.01" cy="47.34" r="1.05" fill="#000"/>
+  <line x1="27.50" y1="34.60" x2="9.83" y2="44.80" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="8.72" cy="41.64" r="1.05" fill="#000"/>
+  <line x1="26.98" y1="33.35" x2="7.27" y2="38.63" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="7.02" cy="35.29" r="1.05" fill="#000"/>
+  <line x1="26.80" y1="32.00" x2="6.40" y2="32.00" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="7.02" cy="28.71" r="1.05" fill="#000"/>
+  <line x1="26.98" y1="30.65" x2="7.27" y2="25.37" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="8.72" cy="22.36" r="1.05" fill="#000"/>
+  <line x1="27.50" y1="29.40" x2="9.83" y2="19.20" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="12.01" cy="16.66" r="1.05" fill="#000"/>
+  <line x1="28.32" y1="28.32" x2="13.90" y2="13.90" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="16.66" cy="12.01" r="1.05" fill="#000"/>
+  <line x1="29.40" y1="27.50" x2="19.20" y2="9.83" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="22.36" cy="8.72" r="1.05" fill="#000"/>
+  <line x1="30.65" y1="26.98" x2="25.37" y2="7.27" stroke="#000" stroke-width="1.15" stroke-linecap="round"/>
+  <circle cx="28.71" cy="7.02" r="1.05" fill="#000"/>
+  <circle cx="32" cy="32" r="5.2" fill="#000"/>
+</svg>
