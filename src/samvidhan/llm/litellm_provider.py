@@ -37,7 +37,16 @@ _ERROR_CODES: tuple[tuple[type[Exception], str], ...] = (
 )
 
 
+# Some providers answer a bad key with HTTP 400 instead of 401 (Groq: `"code":"invalid_api_key"`),
+# which LiteLLM raises as BadRequestError. Matched on the provider's error code, never the key.
+_AUTH_MARKERS = ("invalid_api_key", "api_key_invalid")
+
+
 def error_code(exc: Exception) -> str:
+    if isinstance(exc, llm_errors.BadRequestError) and any(
+        marker in str(exc).lower() for marker in _AUTH_MARKERS
+    ):
+        return "auth"
     for exc_type, code in _ERROR_CODES:
         if isinstance(exc, exc_type):
             return code

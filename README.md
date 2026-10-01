@@ -5,7 +5,7 @@
 **Ask the Constitution of India anything — get answers cited to the exact Article.**
 
 ![Phase](https://img.shields.io/badge/phase-5%20chat%20API%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-313%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-317%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
@@ -306,7 +306,7 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 | Check | Result |
 |:--|:-:|
-| All tests (unit + integration + real PDF) | 🟢 **313 / 313** (+2 live-LLM tests, `make test-llm`) |
+| All tests (unit + integration + real PDF + live LLM) | 🟢 **317 / 317** (live: `make test-llm`) |
 | Articles found vs Contents list | 🟢 **506 / 506** |
 | Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
 | Chunks over the 1,024-token limit | 🟢 **0** |

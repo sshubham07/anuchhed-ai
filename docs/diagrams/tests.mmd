@@ -7,9 +7,9 @@ flowchart TB
         direction LR
         v1["🎯 ref lookup 33"] ~~~ v2["🔤 lexical 5"] ~~~ v3["🔀 RRF 4"] ~~~ v4["⚙️ service 9"] ~~~ v5["📏 metrics 5"] ~~~ v6["📚 golden 2"]
     end
-    subgraph UL ["🤖 Unit · LLM, router & graph — FakeLLM, no network  (277 unit tests in all · ~2 s)"]
+    subgraph UL ["🤖 Unit · LLM, router & graph — FakeLLM, no network  (279 unit tests in all · ~2 s)"]
         direction LR
-        l1["🔌 LLM client 16"] ~~~ l2["💰 budget 8"] ~~~ l3["🌐 LiteLLM adapter 10"] ~~~ l4["📝 prompts 5"] ~~~ l5["🔀 router 11"] ~~~ l6["🧩 HyDE & split 5"]
+        l1["🔌 LLM client 16"] ~~~ l2["💰 budget 8"] ~~~ l3["🌐 LiteLLM adapter 12"] ~~~ l4["📝 prompts 5"] ~~~ l5["🔀 router 11"] ~~~ l6["🧩 HyDE & split 5"]
         l7["✍️ answer 8"] ~~~ l8["📌 citations 23"] ~~~ l9["🧠 memory 5"] ~~~ l10["🕸️ graph 18"] ~~~ l11["📏 router eval 9"]
         l12["📡 API & limits 23"] ~~~ l13["🔀 SSE events 6"] ~~~ l14["📜 OpenAPI 2"]
     end

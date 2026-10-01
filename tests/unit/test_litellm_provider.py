@@ -37,6 +37,16 @@ def _err(cls: type[Exception], **kwargs: Any) -> Exception:
         (_err(llm_errors.RateLimitError), "rate_limited"),
         (_err(llm_errors.AuthenticationError), "auth"),
         (_err(llm_errors.NotFoundError), "not_found"),
+        (_err(llm_errors.BadRequestError), "bad_request"),
+        (  # Groq answers a bad key with 400, not 401
+            llm_errors.BadRequestError(
+                message='GroqException - {"error":{"message":"Invalid API Key",'
+                '"type":"invalid_request_error","code":"invalid_api_key"}}',
+                model="m",
+                llm_provider="groq",
+            ),
+            "auth",
+        ),
         (_err(llm_errors.ServiceUnavailableError), "provider_5xx"),
         (_err(llm_errors.APIConnectionError), "connection"),
         (ValueError("weird"), "provider_error"),

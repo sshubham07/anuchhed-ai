@@ -67,7 +67,7 @@ async def test_valid_json_becomes_a_decision(settings: Settings, prompt: PromptT
         (decision_json(), {"finish_reason": "length"}, "truncated"),
         (
             decision_json(),
-            {"fail_models": {"groq/llama-3.1-8b-instant": "auth"}},
+            {"fail_models": {"ROUTER_MODEL": "auth"}},  # replaced by the configured model below
             "llm_unavailable",
         ),
     ],
@@ -76,6 +76,8 @@ async def test_unusable_output_falls_back_to_simple(
     settings: Settings, prompt: PromptTemplate, reply: str, kwargs: dict[str, Any], reason: str
 ) -> None:
     s = settings.model_copy(update={"router_fallback_model": ""})
+    if "fail_models" in kwargs:  # never hard-code a model id: the .env may name another one
+        kwargs = {"fail_models": {s.router_model: "auth"}}
     with structlog.testing.capture_logs() as logs:
         decision, _, _ = await _route(s, prompt, reply, message="raw question", **kwargs)
     assert decision.type == "simple" and decision.fallback
