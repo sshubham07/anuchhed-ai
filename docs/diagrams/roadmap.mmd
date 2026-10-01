@@ -1,11 +1,11 @@
 flowchart TB
     subgraph ROW1 [" "]
         direction LR
-        P1["📄 <b>1 · Chunk & store in DB</b><br/>PDF → 702 chunks → pgvector<br/>✅ done"]:::done ==> P2["🎯 <b>2 · Eval harness</b><br/>golden Q&A set · metrics<br/>🟡 partial"]:::next ==> P3["🔎 <b>3 · Query & retrieval</b><br/>vector + full-text + rerank<br/>🟡 built · 2 gaps"]:::next ==> P4["🤖 <b>4 · LLM & router</b><br/>answers with citations<br/>🟡 built · router eval needs keys"]:::next
+        P1["📄 <b>1 · Chunk & store</b><br/>PDF → 702 chunks<br/>✅ done"]:::done ==> P2["🎯 <b>2 · Eval harness</b><br/>golden Q&A · metrics<br/>🟡 partial"]:::next ==> P3["🔎 <b>3 · Retrieval</b><br/>vector + full-text + rerank<br/>🟡 built · 2 gaps"]:::next ==> P4["🤖 <b>4 · LLM & router</b><br/>answers with citations<br/>🟡 built · eval needs keys"]:::next
     end
     subgraph ROW2 [" "]
         direction LR
-        P5["💬 <b>5 · Chat API</b><br/>sessions · memory · SSE<br/>🟡 built · 4 steps left"]:::next ==> P6["🖥️ <b>6 · UI</b><br/>Streamlit chat"]:::todo ==> P7["🚀 <b>7 · v1.0 release</b><br/>full eval · hardening"]:::todo
+        P5["💬 <b>5 · Chat API</b><br/>sessions · memory · SSE<br/>✅ done"]:::done ==> P6["🖥️ <b>6 · Web UI</b><br/>streaming chat · citations<br/>🟡 built · polish left"]:::next ==> P7["🚀 <b>7 · v1.0 release</b><br/>full eval · hardening<br/>⬜ not started"]:::todo
     end
     ROW1 ==> ROW2
     classDef done fill:#2ea44f,color:#fff,stroke:#1b7f3b,stroke-width:2px

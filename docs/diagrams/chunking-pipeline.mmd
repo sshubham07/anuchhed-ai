@@ -1,13 +1,16 @@
-flowchart TD
-    A["📕 PDF<br/><b>402 pages</b>"] -->|"PyMuPDF · 2 s"| B["🔤 Extract<br/><b>14,601 rows</b><br/>font size · bold · position"]
-    B --> C["🧹 Clean<br/><b>12,948 body rows</b><br/>headers & page numbers dropped"]
-    C --> D["📝 Footnotes<br/><b>754 amendment notes</b>"]
-    D --> E["🧱 Segment<br/><b>525 segments</b><br/>Part › Chapter › Article"]
-    E --> F["✂️ Chunk<br/><b>702 chunks</b><br/>~300 tokens avg"]
-    F --> G{"✅ Validate<br/>506 / 506 Articles"}
-    G -->|pass| H["🧠 Embed · bge-m3<br/><b>702 × 1024-d</b> · 97 s"]
-    G -->|fail| X["⛔ Stop<br/>nothing stored"]
-    H --> I[("🐘 Postgres<br/>vector + full-text index")]
+flowchart TB
+    subgraph ROW1 [" "]
+        direction LR
+        A["📕 PDF<br/><b>402 pages</b><br/>PyMuPDF · 2 s"] --> B["🔤 Extract<br/><b>14,601 rows</b><br/>font · bold · position"] --> C["🧹 Clean<br/><b>12,948 body rows</b><br/>headers dropped"] --> D["📝 Footnotes<br/><b>754 notes</b>"] --> E["🧱 Segment<br/><b>525 segments</b><br/>Part › Article"]
+    end
+    subgraph ROW2 [" "]
+        direction LR
+        F["✂️ Chunk<br/><b>702 chunks</b><br/>~300 tokens avg"] --> G{"✅ Validate<br/>506 / 506"} -->|pass| H["🧠 Embed · bge-m3<br/><b>702 × 1024-d</b> · 97 s"] --> I[("🐘 Postgres<br/>vector + full-text")]
+        G -->|fail| X["⛔ Stop<br/>nothing stored"]
+    end
+    ROW1 --> ROW2
+    style ROW1 fill:none,stroke:none
+    style ROW2 fill:none,stroke:none
     style G fill:#fff8c5,stroke:#b08800
     style X fill:#ffebe9,stroke:#cf222e
     style I fill:#ddf4ff,stroke:#0969da

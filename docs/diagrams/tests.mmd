@@ -1,30 +1,27 @@
 flowchart TB
-    subgraph U ["⚡ Unit · ingestion"]
+    subgraph U ["⚡ Unit · ingestion, retrieval & eval"]
         direction LR
-        u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"] ~~~ u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"]
+        u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"]
+        u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"] ~~~ v1["🎯 ref lookup 33"] ~~~ v2["🔤 lexical 5"]
+        v3["🔀 RRF 4"] ~~~ v4["⚙️ service 9"] ~~~ v5["📏 metrics 5"] ~~~ v6["📚 golden 3"]
     end
-    subgraph UR ["🔎 Unit · retrieval & eval"]
+    subgraph UL ["🤖 Unit · LLM, router, graph & API — FakeLLM, no network  (290 unit tests · ~3 s)"]
         direction LR
-        v1["🎯 ref lookup 33"] ~~~ v2["🔤 lexical 5"] ~~~ v3["🔀 RRF 4"] ~~~ v4["⚙️ service 9"] ~~~ v5["📏 metrics 5"] ~~~ v6["📚 golden 3"]
-    end
-    subgraph UL ["🤖 Unit · LLM, router & graph — FakeLLM, no network  (290 unit tests in all · ~3 s)"]
-        direction LR
-        l1["🔌 LLM client 16"] ~~~ l2["💰 budget 8"] ~~~ l3["🌐 LiteLLM adapter 12"] ~~~ l4["📝 prompts 5"] ~~~ l5["🔀 router 11"] ~~~ l6["🧩 HyDE & split 5"]
-        l7["✍️ answer 8"] ~~~ l8["📌 citations 23"] ~~~ l9["🧠 memory 5"] ~~~ l10["🕸️ graph 18"] ~~~ l11["📏 router + multi-turn eval 18"]
-        l12["📡 API & limits 23"] ~~~ l13["🔀 SSE events 6"] ~~~ l14["📜 OpenAPI 2"]
+        l1["🔌 LLM client 16"] ~~~ l2["💰 budget 8"] ~~~ l3["🌐 LiteLLM 12"] ~~~ l4["📝 prompts 5"] ~~~ l5["🔀 router 11"]
+        l6["🧩 HyDE & split 5"] ~~~ l7["✍️ answer 8"] ~~~ l8["📌 citations 23"] ~~~ l9["🧠 memory 5"] ~~~ l10["🕸️ graph 18"]
+        l11["📏 router evals 18"] ~~~ l12["📡 API & limits 23"] ~~~ l13["🔀 SSE events 6"] ~~~ l14["📜 OpenAPI 2"]
     end
     subgraph I ["🐳 Integration · real Postgres in Docker"]
         direction LR
-        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"] ~~~ i3["🔎 search legs & service 4"] ~~~ i4["🧾 llm_calls rows & budget 4"] ~~~ i5["🕸️ graph end to end 2"] ~~~ i6["💬 chat API 8"]
-        i7["📏 limits 14"] ~~~ i8["📜 log completeness 1"] ~~~ i9["🧹 session expiry 1"]
+        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations"] ~~~ i3["🔎 search 4"] ~~~ i4["🧾 llm_calls 4"] ~~~ i5["🕸️ graph e2e 2"]
+        i6["💬 chat API 8"] ~~~ i7["📏 limits 14"] ~~~ i8["📜 log trail 1"] ~~~ i9["🧹 expiry 1"]
     end
-    subgraph R ["📕 Real PDF · slow"]
+    subgraph R ["📕 Real PDF & models · slow"]
         direction LR
-        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"] ~~~ r4["⚖️ reranker smoke 1"]
+        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 1"] ~~~ r4["⚖️ reranker 1"]
     end
-    U --> UR --> UL --> I --> R
+    U --> UL --> I --> R
     style U fill:#dafbe1,stroke:#2ea44f
-    style UR fill:#dafbe1,stroke:#2ea44f
     style UL fill:#dafbe1,stroke:#2ea44f
     style I fill:#ddf4ff,stroke:#0969da
     style R fill:#fbefff,stroke:#8250df

@@ -4,7 +4,7 @@
 
 **Ask the Constitution of India anything — get answers cited to the exact Article.**
 
-![Phase](https://img.shields.io/badge/phase-5%20chat%20API%20built-f9c513)
+![Phase](https://img.shields.io/badge/phase-6%20web%20UI%20built-f9c513)
 ![Tests](https://img.shields.io/badge/tests-317%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
@@ -20,7 +20,7 @@
 
 ## 🗺️ Where we are
 
-<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API (built, 4 steps left) → 6 UI → 7 v1.0"></a>
+<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="808" alt="Roadmap: 1 Chunk & store (done) → 2 Eval harness (partial) → 3 Retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API (done) → 6 Web UI (built, polish left) → 7 v1.0"></a>
 
 <sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
 
@@ -85,7 +85,7 @@
 </details>
 
 <details>
-<summary>🟡 <b>5 · Chat API</b> — built; cleanup job, multi-turn eval and limit tests left</summary>
+<summary>✅ <b>5 · Chat API</b> — done</summary>
 
 1. ✅ Sessions, messages and feedback tables (migration 004) + repositories
 2. ✅ `POST /v1/sessions`, history pages, `DELETE` (messages go, feedback snapshots stay)
@@ -132,7 +132,48 @@
 
 ## 🧩 The big picture
 
-<a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="100%" alt="Big picture: ① PDF is chunked and stored in pgvector; ③④ a question goes through router, hybrid search, reranker and answer LLM"></a>
+<a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="860" alt="Big picture: ① PDF is chunked and stored in pgvector; a question from the ⑥ web UI goes through the ⑤ chat API, ④ router, ③ hybrid search + reranker and ④ answer LLM"></a>
+
+---
+
+## 🖥️ The web UI
+
+> **The Constitution, talking back** — ivory paper, saffron & green accents, navy citations. Plain HTML/CSS/JS
+> served by the API at `/`: no build step, no npm. <sub>[Why? → ADR-0013](docs/adr/0013-static-web-ui.md) · [spec](docs/specs/ui.md)</sub>
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/ui-landing.png"><img src="docs/screenshots/ui-landing.png" width="100%" alt="Landing: Preamble typewriter turns into the search box, persona chips, starter questions, Article of the Day"></a><br/><sub><b>Landing</b> — Preamble → search box, personas, Article of the Day</sub></td>
+<td width="50%"><a href="docs/screenshots/ui-chat.png"><img src="docs/screenshots/ui-chat.png" width="100%" alt="Chat: streamed answer with an Art. 21 citation pill and a manuscript-style citation card, style toggle"></a><br/><sub><b>Chat</b> — streamed answer, citation pill + card, style toggle</sub></td>
+</tr>
+<tr>
+<td width="50%"><a href="docs/screenshots/ui-drawer.png"><img src="docs/screenshots/ui-drawer.png" width="100%" alt="Drawer with the full text of Article 21, previous/next and Ask about this"></a><br/><sub><b>Read full Article</b> — drawer with prev / next</sub></td>
+<td width="50%"><a href="docs/screenshots/ui-night.png"><img src="docs/screenshots/ui-night.png" width="100%" alt="Night-reading dark theme of the chat view"></a><br/><sub><b>Night reading</b> — dark theme, follows the OS or the toggle</sub></td>
+</tr>
+</table>
+
+| Feature | What it does |
+|:--|:--|
+| ✍️ Preamble typewriter | Types the opening of the Preamble, then becomes the search box (instant with reduced motion) |
+| 🎓 Personas | UPSC Aspirant · Advocate · Citizen — sets the answer style and shows four starter questions |
+| 📜 Article of the Day | Same Article for everyone on a given day; "Read full Article" or "Ask about this" |
+| ⚡ Streaming answers | SSE from `POST /v1/chat`; stop button; route + style chips on each answer |
+| 📌 Citations | `Art. 21` pills in the text + manuscript-style cards with the quoted excerpt |
+| 📖 Full-Article drawer | `GET /v1/articles/{no}` — full text, previous / next Article, copy, ask about it |
+| 🎚️ Answer style | Auto / Brief / Detailed / Exam — overrides the router via `answer_style` |
+| 👍 Feedback | 👍 / 👎 with an optional comment → `POST /v1/messages/{id}/feedback` |
+| 💾 History | Session id in the URL + `localStorage`; reload restores the chat; New chat / Clear |
+| 🔬 Behind the answer | Route, standalone question and scored chunks — only when `DEBUG_UI=true` |
+| 🌙 Night reading | Dark theme that follows the OS or the toggle; `/` focuses the composer |
+
+```bash
+make run          # API + UI → http://localhost:8000/   (or: docker compose --profile app up)
+make ui           # open it in the browser
+```
+
+`SERVE_UI=true` mounts `ui/` at `/` (`UI_DIR` to move it) · `DEBUG_UI=true` adds the debug panel — set it to
+`false` before going public. The State Emblem is used as the logo; the footer says it is not an official
+Government of India service.
 
 ---
 
@@ -141,7 +182,7 @@
 > **One small LLM call routes, one large LLM call answers** — a fixed LangGraph pipeline, not an agent.
 > <sub>[Why? → ADR-0003](docs/adr/0003-deterministic-router-not-agent.md) · [ADR-0011](docs/adr/0011-langgraph-orchestration.md) · [spec](docs/specs/llm-router-generation.md)</sub>
 
-<a href="docs/diagrams/langgraph.svg"><img src="docs/diagrams/langgraph.svg" width="60%" alt="LangGraph pipeline: load_memory → route → retrieve / hyde → retrieve / decompose / respond_template → generate → validate_citations → save_turn"></a>
+<a href="docs/diagrams/langgraph.svg"><img src="docs/diagrams/langgraph.svg" width="483" alt="LangGraph pipeline: load_memory → route → retrieve / hyde → retrieve / decompose / respond_template → generate → validate_citations → save_turn"></a>
 
 <sub>Drawn from the compiled graph itself (`make graph`), so it can't drift from the code.</sub>
 
@@ -252,7 +293,7 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 > **One chunk per Article** — the Constitution's own structure, not fixed-size windows. <sub>[Why? → ADR-0001](docs/adr/0001-structure-aware-chunking.md)</sub>
 
-<a href="docs/diagrams/chunking-pipeline.svg"><img src="docs/diagrams/chunking-pipeline.svg" width="100%" alt="Chunking pipeline: PDF → extract → clean → footnotes → segment → chunk → validate → embed → Postgres"></a>
+<a href="docs/diagrams/chunking-pipeline.svg"><img src="docs/diagrams/chunking-pipeline.svg" width="790" alt="Chunking pipeline: PDF → extract → clean → footnotes → segment → chunk → validate → embed → Postgres"></a>
 
 <details>
 <summary>🔍 <b>Click — what each step does</b></summary>
@@ -273,11 +314,11 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 ### ✂️ Chunking rules
 
-<a href="docs/diagrams/chunking-rules.svg"><img src="docs/diagrams/chunking-rules.svg" width="100%" alt="Chunking rules per segment type"></a>
+<a href="docs/diagrams/chunking-rules.svg"><img src="docs/diagrams/chunking-rules.svg" width="800" alt="Chunking rules per segment type"></a>
 
 ### 🔬 Anatomy of one chunk
 
-<a href="docs/diagrams/chunk-anatomy.svg"><img src="docs/diagrams/chunk-anatomy.svg" width="100%" alt="Anatomy of one chunk"></a>
+<a href="docs/diagrams/chunk-anatomy.svg"><img src="docs/diagrams/chunk-anatomy.svg" width="540" alt="Anatomy of one chunk"></a>
 
 ---
 
@@ -307,7 +348,7 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 ## 🧪 How it was tested
 
-<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit (ingestion, retrieval, eval, LLM/router/graph), integration, real PDF and models"></a>
+<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="774" alt="Test pyramid: unit (ingestion, retrieval, eval, LLM/router/graph), integration, real PDF and models"></a>
 
 ### ✅ Results
 
@@ -443,7 +484,7 @@ golden set reaches v1.0.
 ## 🚀 Run it
 
 <details>
-<summary>▶️ <b>Click — 5 commands</b></summary>
+<summary>▶️ <b>Click — 6 commands</b></summary>
 
 ```bash
 make setup                      # install + create .env (set POSTGRES_PASSWORD, GROQ_API_KEY, GEMINI_API_KEY)
