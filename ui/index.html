@@ -7,7 +7,7 @@
   <meta name="description" content="Ask anything about the Constitution of India. Answers come only from its text, with Article citations.">
   <meta name="theme-color" content="#FFFDF7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0E1330" media="(prefers-color-scheme: dark)">
-  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/emblem.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap">
@@ -25,7 +25,7 @@
 
   <header class="topbar">
     <a class="brand" href="./" aria-label="Samvidhan, home">
-      <img src="assets/logo.svg" alt="" width="36" height="36">
+      <span class="emblem" aria-hidden="true"></span>
       <span class="brand-text">
         <span class="brand-name">Samvidhan</span>
         <span class="brand-sub" lang="hi">संविधान · <span lang="en">Ask the Constitution</span></span>
@@ -118,12 +118,13 @@
           <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
         </button>
       </div>
-      <p class="composer-hint">Answers come only from the text of the Constitution. <span class="kbd-hint">Enter to send · Shift+Enter for a new line</span></p>
+      <p class="composer-hint">Answers come only from the text of the Constitution. Not an official Government of India service. <span class="kbd-hint">Enter to send · Shift+Enter for a new line</span></p>
     </form>
   </div>
 
   <footer class="footer" id="footer">
     <p><span id="edition">The Constitution of India</span> · Informational only. Not legal advice.</p>
+    <p class="unofficial">An independent project — not an official Government of India service.</p>
   </footer>
 
   <!-- Full Article drawer -->

@@ -143,7 +143,7 @@ function botTurn() {
   const sources = el("section", { class: "sources", hidden: true, "aria-label": "Sources" });
   const actions = el("div", { class: "actions", hidden: true });
   const main = el("div", { class: "msg-main" }, meta, wait, answer, note, sources, actions);
-  const node = el("li", { class: "msg-bot" }, el("div", { class: "avatar", "aria-hidden": "true" }, el("img", { src: "assets/logo.svg", alt: "" })), main);
+  const node = el("li", { class: "msg-bot" }, el("div", { class: "avatar", "aria-hidden": "true" }, el("span", { class: "emblem" })), main);
   $("#thread").append(node);
   linkHover(main);
 

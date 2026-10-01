@@ -637,8 +637,8 @@ Full detail: `docs/specs/ui.md`.
 - Static HTML/CSS/vanilla JS in `ui/`, served by FastAPI at `/` (`SERVE_UI=true`). The browser calls `/v1/...`
   from the same origin. Streaming uses `fetch` + an SSE parser, because `EventSource` can't POST.
 - Look and feel: ivory paper with saffron and green accents, navy citations, serif for Constitution text, and an
-  original manuscript-style border. Ashoka Chakra logo; the chat view has a soft tricolour wash with a faint
-  Chakra watermark (the State Emblem is not used — restricted by law).
+  original manuscript-style border. State Emblem logo (see the legal note in `ui.md`); the chat view has a soft tricolour wash with a faint
+  Ashoka Chakra watermark.
 - Landing: the Preamble types itself out, then becomes the search box. Persona chips (UPSC Aspirant, Advocate,
   Citizen) preset the answer style and starter questions; they're UI-only. Article of the Day card.
 - Chat: streaming tokens; citation pills and manuscript-style citation cards; a "Read full Article" drawer

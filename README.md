@@ -108,7 +108,7 @@
 <summary>🟡 <b>6 · Web UI</b> — built, packaging + polish left</summary>
 
 1. ✅ Static web UI served by the API at `/` (ADR-0013): ivory paper, saffron/green accents, navy citations
-   — Ashoka Chakra logo and a soft tricolour chat background
+   — State Emblem logo, tricolour chat background with an Ashoka Chakra watermark
 2. ✅ Preamble typewriter → search box, persona chips, Article of the Day
 3. ✅ Streaming answers, citation pills + manuscript cards, "Read full Article" drawer
 4. ✅ Auto / Brief / Detailed / Exam toggle (`answer_style` override), 👍/👎 with comment, debug panel

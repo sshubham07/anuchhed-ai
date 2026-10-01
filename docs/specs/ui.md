@@ -51,9 +51,12 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
 - Texture: paper grain from an inline SVG `feTurbulence` at low opacity.
 - Original manuscript-style border: a repeating lotus-bud-and-vine SVG, our own drawing. It's used on the
   landing frame and the drawer header only.
-- Logo: the Ashoka Chakra (24 spokes, navy) on a white disc ringed in saffron and green, drawn from geometry in
-  `assets/logo.svg`. The State Emblem (Lion Capital) is **not** used: the State Emblem of India (Prohibition of
-  Improper Use) Act, 2005 restricts it to government use.
+- Logo: the State Emblem of India (Lion Capital, `assets/emblem.svg`, from Wikimedia Commons
+  `File:Emblem_of_India.svg`, public domain). It's used as a CSS mask, tinted `--navy`, in the header, on each
+  answer and as the favicon. The chat watermark is the Ashoka Chakra (`assets/chakra.svg`).
+- **Legal note (owner's decision):** the State Emblem of India (Prohibition of Improper Use) Act, 2005 restricts
+  the emblem to official use. To avoid implying government affiliation, the footer and composer say "not an
+  official Government of India service". Review before any public deployment.
 - Dark theme, "night reading": deep ink-navy paper, ivory text, the same accents. It follows
   `prefers-color-scheme` and can be set by a toggle, which is remembered in `localStorage`.
 

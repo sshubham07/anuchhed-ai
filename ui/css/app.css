@@ -68,6 +68,15 @@ a { color: var(--navy); }
 .topbar.scrolled { border-bottom-color: var(--rule); }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; min-width: 0; }
 .brand img { flex: none; }
+/* State Emblem (Wikimedia Commons, public domain), tinted with the theme via a mask. */
+.emblem {
+  display: block; flex: none;
+  width: 26px; height: 42px;
+  background: var(--navy);
+  -webkit-mask: url("../assets/emblem.svg") center / contain no-repeat;
+  mask: url("../assets/emblem.svg") center / contain no-repeat;
+}
+.footer .unofficial { margin-top: 4px; font-size: .72rem; opacity: .85; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .brand-name { font: 600 1.15rem/1.1 var(--font-serif); letter-spacing: .01em; }
 .brand-sub { font: 400 var(--step--1)/1.3 var(--font-deva); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -381,7 +390,7 @@ body.in-chat .composer-wrap { background: linear-gradient(to top, var(--flag-bot
 
 .msg-bot { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; animation: rise .3s var(--ease) both; }
 .msg-bot .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--paper-2); border: 1px solid var(--paper-edge); display: grid; place-items: center; }
-.msg-bot .avatar img { width: 22px; height: 22px; }
+.msg-bot .avatar .emblem { width: 16px; height: 24px; }
 .msg-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 32px; margin-bottom: 2px; }
 .tag {
   display: inline-flex; align-items: center; gap: 4px;
