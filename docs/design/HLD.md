@@ -160,29 +160,34 @@ Query types the system must handle (these become router `type` values, §8.2):
 
 ## 6. Models
 
-All model IDs are config values (`.env`), called through LiteLLM. The lineup below was checked on 2026-09-30.
+All model IDs are config values (`.env`), called through LiteLLM. The lineup below was checked on 2026-10-01
+against each provider's model list, after Groq retired the Llama 3.1 8B / 3.3 70B models planned earlier.
 **Re-verify free-tier availability and limits before building** — providers change them often.
 
-| Role | Primary | Fallback | Why this size |
-|------|---------|----------|---------------|
-| Router + condense (LLM #1) | `groq/llama-3.1-8b-instant` | Gemini Flash-Lite (current free ID) | Classification + rewrite is easy; needs speed and a high daily quota |
-| Answer generation (LLM #2) | `groq/llama-3.3-70b-versatile` | Gemini Flash (current free ID, e.g. Gemini 3 Flash) | Must follow grounding rules, cite accurately and refuse correctly |
-| Router for long queries (> `LONG_QUERY_CHARS`) | `groq/llama-3.3-70b-versatile` | Gemini Flash | Long, layered questions and fact scenarios need stronger decomposition |
-| Answer generation — `detailed` / `exam` style | Gemini Flash (current free ID) | `groq/llama-3.3-70b-versatile` | Long answers with up to 15 chunks use ~8–10K tokens per call; Gemini's free tier allows far more tokens/minute than Groq's 70B |
+| Role | Primary | Fallback | Why this model |
+|------|---------|----------|----------------|
+| Router + condense (LLM #1) | `groq/qwen/qwen3.8-27b` (thinking off) | `gemini/gemini-3.5-flash-lite` | Fastest valid-JSON router in the 2026-10-01 probe (0.5–0.9 s) |
+| Answer generation (LLM #2) | `groq/openai/gpt-oss-120b` (reasoning low) | `gemini/gemini-3.5-flash` | Largest model on Groq's free tier; must follow grounding rules, cite and refuse |
+| Router for long queries (> `LONG_QUERY_CHARS`) | `groq/openai/gpt-oss-120b` | `gemini/gemini-3.5-flash-lite` | Long, layered questions and fact scenarios need stronger decomposition |
+| Answer generation — `detailed` / `exam` style | `gemini/gemini-3.5-flash` (thinking minimal) | `groq/openai/gpt-oss-120b` | Long answers use ~8–10K tokens per call, more than Groq's 8K tokens/minute free tier |
 | HyDE passage | same as router | same | Short, low-stakes |
 | Rolling summary (v2) | same as router | same | Background, low-stakes |
-| Eval judge (RAGAS) | Gemini Flash | `groq/openai/gpt-oss-120b` | A **different family** from the generator reduces self-grading bias |
+| Eval judge (RAGAS) | `gemini/gemini-3.5-flash` | `groq/openai/gpt-oss-120b` | A **different family** from the generator reduces self-grading bias |
 | Embeddings | `BAAI/bge-m3` (dense, 1024-d, normalized) | — | Local, free |
 | Reranker | `BAAI/bge-reranker-v2-m3` (max_length 512) | none: skip rerank, use RRF order | Local, free |
+
+All three Groq models and Gemini 3.x Flash spend output tokens on hidden reasoning. `MODEL_REASONING_EFFORT` turns it
+down per model (`none` / `low` / `minimal`); without it the router's JSON ran out of its 300-token budget.
 
 **Settings:** answer `temperature=0.1`, `max_tokens=700` (`brief`) or `1,500` (`detailed`/`exam`); router
 `temperature=0`, JSON mode, `max_tokens=300`. All limits are listed in §13.2.
 
-**Free-tier budget reality:** daily request caps on large free models can be as low as ~1K requests/day, so
-answer-model capacity is roughly 1K questions/day. The router runs on the 8B model, which has a separate and larger
-quota. A daily budget guard (§8.6) switches to the fallback provider or returns a "busy" message near the cap.
+**Free-tier budget reality:** each Groq free-tier model allows 1,000 requests/day and 8,000 tokens/minute
+(2026-10-01). A router call is ~1.4K tokens and an answer call ~2.5–4K, so tokens/minute binds first: roughly 5
+routes or 2–3 answers per minute per model before the fallback takes over. Answer capacity is ~1K questions/day.
+A daily budget guard (§8.6) switches to the fallback provider or returns a "busy" message near the cap.
 
-**Upgrade path:** if eval shows faithfulness < threshold with the 70B model, move to a paid model for the answer
+**Upgrade path:** if eval shows faithfulness < threshold with gpt-oss-120b, move to a paid model for the answer
 role only. The router stays small.
 
 ---

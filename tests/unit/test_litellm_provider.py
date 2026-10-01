@@ -76,6 +76,11 @@ async def test_complete_passes_key_json_mode_and_parses(
     seen.clear()
     await provider.complete(request(model="gemini/flash"))
     assert "api_key" not in seen and "response_format" not in seen  # unset key: not passed
+    assert "reasoning_effort" not in seen
+
+    seen.clear()
+    await provider.complete(request(model="groq/qwen/qwen3.8-27b"))
+    assert seen["reasoning_effort"] == "none"  # from MODEL_REASONING_EFFORT
 
 
 async def test_provider_errors_are_wrapped(

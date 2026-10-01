@@ -237,7 +237,7 @@ No LLM call:
 ### 3.11 Router eval (`eval/router_suite.py`, `eval/run.py --suite router`)
 
 - Each single-turn case in the split → `route(question, empty memory)` through the real `LLMClient`, with every
-  call logged. `--rpm` (default 25) spaces calls to stay under free-tier RPM limits.
+  call logged. `--rpm` (default 5: ~1.4K tokens per call vs Groq's 8K tokens/min free tier) spaces calls to stay under free-tier RPM limits.
 - Metrics (evaluation.md §3.2): **type accuracy** (+ confusion matrix), **article_refs F1** (set F1 between the
   normalized `article_refs + schedule_refs` and `question_refs`; both empty = 1.0; mean over all cases, also
   reported for cases with refs), **JSON validity** (share without `fallback`), **answer_style accuracy**. Gates

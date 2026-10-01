@@ -70,7 +70,8 @@
 <details>
 <summary>🟡 <b>4 · LLM & router</b> — built; router eval waits for API keys</summary>
 
-1. ✅ LiteLLM client — Groq primary, Gemini fallback, 1 retry, every attempt logged to `llm_calls`
+1. ✅ LiteLLM client — Groq primary (Qwen3.8 27B router, gpt-oss-120b answers), Gemini 3.5 fallback, 1 retry,
+   every attempt logged to `llm_calls`
 2. ✅ Daily budget guard — near a model's cap, switch to the fallback; both capped → "busy"
 3. ✅ Router — rewrites the question, extracts Article refs and picks the route (JSON, falls back to `simple`)
 4. ✅ HyDE for broad questions, sub-question search for multi-part ones
@@ -185,7 +186,12 @@ llm_call purpose=answer model=fake/model status=ok …
 ### 🔀 Router eval
 
 `make eval-router` runs every dev question through the real router (gates: type accuracy ≥ 0.90, refs F1 ≥ 0.95,
-JSON validity ≥ 0.99, answer style ≥ 0.85). **Not run yet — it needs `GROQ_API_KEY` in `.env`.**
+JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** with the new lineup — results land here.
+
+> ⚠️ Groq retired the Llama 3.1 8B / 3.3 70B models this project first planned on (2026-10-01). The router now runs
+> on `qwen/qwen3.8-27b` and answers on `openai/gpt-oss-120b`, with their hidden reasoning turned down
+> (`MODEL_REASONING_EFFORT`). Groq's free tier is 1,000 requests/day and 8,000 tokens/min per model, so the eval
+> paces itself at 5 calls/min. See [HLD §6](docs/design/HLD.md#6-models).
 
 ---
 
@@ -390,8 +396,8 @@ make ask Q="What does Article 21 say?"   # cited answer in the terminal
 ```
 
 `make ingest ARGS=--dry-run` → writes `data/processed/chunks.jsonl` + `ingestion_report.json`, no DB.
-Set the Gemini fallback model ids in `.env` (`ROUTER_FALLBACK_MODEL`, `ANSWER_FALLBACK_MODEL`, …); until then the
-fallback is skipped and logged.
+Model ids live in `.env`: copy the `# ---- Models` block from `.env.example` (an older `.env` still names the
+retired Llama models).
 </details>
 
 ---

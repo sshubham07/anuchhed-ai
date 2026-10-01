@@ -48,22 +48,33 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = SecretStr("")
 
     # ---- Models ----
-    router_model: str = "groq/llama-3.1-8b-instant"
-    router_fallback_model: str = ""
-    answer_model: str = "groq/llama-3.3-70b-versatile"
-    answer_fallback_model: str = ""
-    router_model_long: str = "groq/llama-3.3-70b-versatile"
-    answer_model_long: str = ""
-    answer_fallback_model_long: str = "groq/llama-3.3-70b-versatile"
-    summary_model: str = "groq/llama-3.1-8b-instant"
-    judge_model: str = ""
-    judge_fallback_model: str = ""
+    # Lineup verified 2026-10-01 against each provider's model list (HLD §6, ADR-0009).
+    router_model: str = "groq/qwen/qwen3.8-27b"
+    router_fallback_model: str = "gemini/gemini-3.5-flash-lite"
+    answer_model: str = "groq/openai/gpt-oss-120b"
+    answer_fallback_model: str = "gemini/gemini-3.5-flash"
+    router_model_long: str = "groq/openai/gpt-oss-120b"
+    answer_model_long: str = "gemini/gemini-3.5-flash"
+    answer_fallback_model_long: str = "groq/openai/gpt-oss-120b"
+    summary_model: str = "groq/qwen/qwen3.8-27b"
+    judge_model: str = "gemini/gemini-3.5-flash"
+    judge_fallback_model: str = "groq/openai/gpt-oss-120b"
+    # Thinking models spend output tokens on hidden reasoning; keep it low so JSON and answers fit
+    # their token caps. Values are provider-specific; models not listed get the provider default.
+    model_reasoning_effort: dict[str, str] = Field(
+        default_factory=lambda: {
+            "groq/qwen/qwen3.8-27b": "none",
+            "groq/openai/gpt-oss-120b": "low",
+            "groq/openai/gpt-oss-20b": "low",
+            "gemini/gemini-3.5-flash": "minimal",
+        }
+    )
     embed_model: str = "BAAI/bge-m3"
     rerank_model: str = "BAAI/bge-reranker-v2-m3"
     model_device: ModelDevice = "auto"
 
     # ---- Daily request caps (budget guard) ----
-    daily_cap_router_model: int = 14000
+    daily_cap_router_model: int = 1000
     daily_cap_answer_model: int = 1000
     daily_cap_router_fallback_model: int = Field(default=0, ge=0)  # 0 = no cap
     daily_cap_answer_fallback_model: int = Field(default=0, ge=0)

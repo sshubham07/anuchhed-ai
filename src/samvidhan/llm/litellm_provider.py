@@ -53,6 +53,7 @@ class LiteLLMProvider:
             "groq": settings.groq_api_key.get_secret_value(),
             "gemini": settings.gemini_api_key.get_secret_value(),
         }
+        self._reasoning_effort = dict(settings.model_reasoning_effort)
 
     def _kwargs(self, request: ProviderRequest) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
@@ -69,6 +70,8 @@ class LiteLLMProvider:
             kwargs["api_key"] = key
         if request.json_mode:
             kwargs["response_format"] = {"type": "json_object"}
+        if effort := self._reasoning_effort.get(request.model):
+            kwargs["reasoning_effort"] = effort
         return kwargs
 
     async def complete(self, request: ProviderRequest) -> Completion:

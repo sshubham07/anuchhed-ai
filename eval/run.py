@@ -2,7 +2,7 @@
 
     python -m eval.run --suite retrieval --split dev               # gated run, writes a report
     python -m eval.run --suite retrieval --split dev --ablation    # each retrieval mode
-    python -m eval.run --suite router --split dev [--rpm 25]       # real router LLM, logged
+    python -m eval.run --suite router --split dev [--rpm 5]       # real router LLM, logged
 
 Exit code: 0 all gates pass, 1 a gate failed or regressed > 2 pts vs baseline, 2 bad usage.
 """
@@ -72,7 +72,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--mode", choices=RETRIEVAL_MODES, default="hybrid_rerank")
     parser.add_argument("--ablation", action="store_true", help="run every mode, write a table")
     parser.add_argument("--out", type=Path, default=REPORTS)
-    parser.add_argument("--rpm", type=float, default=25, help="router suite: max LLM calls/min")
+    parser.add_argument(
+        "--rpm", type=float, default=5, help="router suite: max calls/min (Groq free: 8K tok/min)"
+    )
     args = parser.parse_args(argv)
     if args.ablation and args.split != "dev":
         print("--ablation is a tuning tool; run it on --split dev only (evaluation.md §2.5)")

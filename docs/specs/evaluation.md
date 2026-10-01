@@ -268,7 +268,7 @@ uv run python -m eval.run --suite full      --split test    # router + answer + 
   questions.
 - `eval/reports/baseline.json` is the last promoted retrieval report and `baseline_router.json` the last promoted
   router report (see `/eval`).
-- The router suite calls the real router model (every call logged to `llm_calls`), paced by `--rpm` (default 25)
+- The router suite calls the real router model (every call logged to `llm_calls`), paced by `--rpm` (default 5: ~1.4K tokens per call vs Groq's 8K tokens/min free tier)
   for free-tier limits, with an empty memory per case. Details: `docs/specs/llm-router-generation.md` §3.11.
 - CI: the retrieval suite runs on every PR against a pre-built fixture DB (ingested once per chunker/embedding
   version and cached). The full suite runs nightly on `main` and posts a summary as a workflow artifact.
