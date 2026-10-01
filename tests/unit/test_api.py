@@ -305,6 +305,7 @@ def test_ui_is_served_at_root_without_shadowing_the_api(settings: Settings, tmp_
     with _ui_client(settings, tmp_path) as client:
         page = client.get("/")
         assert page.status_code == 200 and "Samvidhan" in page.text
+        assert page.headers["cache-control"] == "no-cache"  # never serve a stale UI
         assert client.get("/healthz").json() == {"status": "ok"}
         missing = client.get("/v1/nope")
         assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOUND"

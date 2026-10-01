@@ -2,10 +2,12 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from samvidhan import __version__
 from samvidhan.api.errors import REQUEST_ID_HEADER, register_error_handlers
@@ -63,6 +65,16 @@ def create_app(
     return app
 
 
+class UIStaticFiles(StaticFiles):
+    """Static UI files with `Cache-Control: no-cache`: browsers revalidate (ETag → 304) on every
+    load, so a changed UI file is never served stale. There's no build step to fingerprint names."""
+
+    def file_response(self, *args: Any, **kwargs: Any) -> Response:
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 def _mount_ui(app: FastAPI, settings: Settings) -> None:
     """Static web UI at `/` (ADR-0013). Mounted last, so API routes always win."""
     if not settings.serve_ui:
@@ -70,4 +82,4 @@ def _mount_ui(app: FastAPI, settings: Settings) -> None:
     if not settings.ui_dir.is_dir():
         log.warning("ui_dir_missing", ui_dir=str(settings.ui_dir))
         return
-    app.mount("/", StaticFiles(directory=settings.ui_dir, html=True), name="ui")
+    app.mount("/", UIStaticFiles(directory=settings.ui_dir, html=True), name="ui")
