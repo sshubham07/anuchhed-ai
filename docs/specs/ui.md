@@ -13,7 +13,7 @@ citations, open the full Article, follow up, and give feedback.
 
 ## 2. Scope
 - In scope:
-  - Landing screen: Preamble typewriter that becomes the search box, persona chips, Article of the Day.
+  - Landing screen: Preamble typewriter that becomes the search box, persona chips. (Article of the Day was removed on 2026-10-01.)
   - Chat: streaming answers, citation pills and cards, "Read full Article" drawer, Auto/Brief/Detailed/Exam
     toggle, 👍/👎 with an optional comment, New chat and Clear, history reload, error states.
   - Debug panel when the API runs with `DEBUG_UI=true`.
@@ -69,11 +69,7 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
 3. Persona chips: 🎓 UPSC Aspirant (default style Exam) · 🧑‍⚖️ Advocate (Detailed) · 🙋 Citizen (Brief).
    Picking one sets the style toggle and shows that persona's four starter questions (`ui/data/personas.json`).
    The choice is remembered in `localStorage`.
-4. **Article of the Day** card. The ref comes from `ui/data/articles-of-the-day.json` at index
-   `dayOfYear % n`, so it's the same for everyone on a given day. The card shows a navy badge, title, Part
-   breadcrumb, the first ~280 characters in serif from `GET /v1/articles/{ref}`, and two buttons: "Read full
-   Article" (opens the drawer) and "Ask about this" (sends "Explain {label} in simple words.").
-5. Footer: the edition date from `GET /v1/meta` ("Text as on …") and "Informational only. Not legal advice."
+4. Footer: the edition date from `GET /v1/meta` ("Text as on …") and "Informational only. Not legal advice."
 
 ### 3.4 Chat
 - **Sending.** `POST /v1/chat {session_id, message, stream: true, answer_style?}`.
@@ -108,6 +104,8 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
   The buttons then show the chosen state. They're disabled for answers without a `message_id`.
 - **Session.**
   - "New chat" clears the thread and creates a fresh session on the next send.
+  - The header brand ("NyayaAI", subtitle "न्याय · Ask the Constitution") is the home link. A plain click does the
+    same as New chat; it must not reload, because a reload restores the stored session and shows the chat again.
   - "Clear" sends `DELETE /v1/sessions/{id}`, then does the same as New chat.
   - On load with a stored id, `GET /v1/sessions/{id}/messages` rebuilds the thread. Cards come from
     `cited_articles`, with labels made like `generation/citations.label`. A 404 means the session expired: start
@@ -134,7 +132,7 @@ Static files in `ui/`: `index.html`, `css/`, `js/` (ES modules), `assets/` (SVG)
 | `js/api.js` | fetch wrappers, `ApiError {code, message, retryAfter}` |
 | `js/sse.js` | `streamChat(body, handlers, signal)`: POST + incremental `event:`/`data:` parser |
 | `js/render.js` | `escapeHtml`, `renderAnswer(text)`, `parseCitationRefs`, `labelFor(ref)` |
-| `js/landing.js` | typewriter, personas, Article of the Day |
+| `js/landing.js` | typewriter, personas |
 | `js/chat.js` | thread state, send/stream, toggle, feedback, session lifecycle |
 | `js/drawer.js` | Article drawer and the shared article cache |
 | `js/debug.js` | debug panel |
@@ -149,7 +147,6 @@ to `done`. `CORS_ORIGINS` stays for UIs served from another origin; the default 
 |---------|-----------|
 | Google Fonts unreachable | System serif/sans fallbacks; layout unchanged |
 | `/v1/meta` fails | Footer omits the edition date |
-| Article of the Day ref 404s | Card hides |
 | Stream cut mid-answer (network) | The bubble keeps the partial text, marked "interrupted", with a retry button |
 | Stored session expired | Fresh session, no error shown |
 | `ui/` missing with `SERVE_UI=true` | App starts; the mount is skipped with a warning log |

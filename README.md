@@ -71,14 +71,14 @@ evaluation, failure handling, and Article-level source attribution.**
 
 <table>
 <tr>
-<td width="33%"><a href="docs/screenshots/ui-landing.png"><img src="docs/screenshots/ui-landing.png" width="100%" alt="Landing: Preamble typewriter turns into the search box, persona chips, starter questions, Article of the Day"></a><br/><sub><b>Landing</b> — Preamble → search box, personas, Article of the Day</sub></td>
+<td width="33%"><a href="docs/screenshots/ui-landing.png"><img src="docs/screenshots/ui-landing.png" width="100%" alt="Landing: Preamble typewriter turns into the search box, persona chips, starter questions"></a><br/><sub><b>Landing</b> — Preamble → search box, personas, Article of the Day</sub></td>
 <td width="33%"><a href="docs/screenshots/ui-drawer.png"><img src="docs/screenshots/ui-drawer.png" width="100%" alt="Drawer with the full text of Article 21, previous/next and Ask about this"></a><br/><sub><b>Read full Article</b> — drawer with prev / next</sub></td>
 <td width="33%"><a href="docs/screenshots/ui-night.png"><img src="docs/screenshots/ui-night.png" width="100%" alt="Night-reading dark theme of the chat view"></a><br/><sub><b>Night reading</b> — follows the OS or the toggle</sub></td>
 </tr>
 </table>
 
 - **Ask** — streamed answers with `Art. 21` pills and quoted citation cards; Auto / Brief / Detailed / Exam toggle.
-- **Explore** — personas (UPSC Aspirant · Advocate · Citizen) with starter questions; Article of the Day.
+- **Explore** — personas (UPSC Aspirant · Advocate · Citizen) with starter questions.
 - **Keep** — 👍 / 👎 with a comment; history restored on reload; New chat / Clear.
 - **Debug** — "Behind the answer" shows the route and scored chunks when `DEBUG_UI=true` (turn off when public).
 

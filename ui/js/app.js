@@ -1,6 +1,6 @@
 // Bootstrap: theme, edition date, drawer, chat, landing, history restore, keyboard shortcuts.
 import { api } from "./api.js";
-import { ask, initChat, restore, setStyle } from "./chat.js";
+import { ask, initChat, newChat, restore, setStyle } from "./chat.js";
 import { $ } from "./dom.js";
 import { initDrawer } from "./drawer.js";
 import { initLanding } from "./landing.js";
@@ -46,9 +46,20 @@ function initShortcuts() {
   window.addEventListener("scroll", () => bar.classList.toggle("scrolled", window.scrollY > 4), { passive: true });
 }
 
+// The brand link would reload the page and restore the saved session; go to a fresh landing instead.
+// Modified clicks (new tab, etc.) keep the plain link.
+function initHomeLink() {
+  $(".brand").addEventListener("click", (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    newChat();
+  });
+}
+
 async function main() {
   initTheme();
   initShortcuts();
+  initHomeLink();
   initDrawer({ ask });
   initChat();
   initEdition();
