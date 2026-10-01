@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <!-- Corner rosette for the manuscript frame (top-left; mirrored in CSS). Original drawing. -->
+  <path d="M2 38 V8 Q2 2 8 2 H38" fill="none" stroke="#8A6A2F" stroke-width="1.2"/>
+  <path d="M6 38 V11 Q6 6 11 6 H38" fill="none" stroke="#8A6A2F" stroke-width=".6" stroke-opacity=".6"/>
+  <g transform="translate(13 13)">
+    <circle r="6.5" fill="#FFFDF7" stroke="#8A6A2F" stroke-width=".8"/>
+    <g fill="#FF9933"><path d="M0 -5.5 C1.6 -3.4 1.6 -1.4 0 0 C-1.6 -1.4 -1.6 -3.4 0 -5.5Z"/><path d="M0 -5.5 C1.6 -3.4 1.6 -1.4 0 0 C-1.6 -1.4 -1.6 -3.4 0 -5.5Z" transform="rotate(90)"/><path d="M0 -5.5 C1.6 -3.4 1.6 -1.4 0 0 C-1.6 -1.4 -1.6 -3.4 0 -5.5Z" transform="rotate(180)"/><path d="M0 -5.5 C1.6 -3.4 1.6 -1.4 0 0 C-1.6 -1.4 -1.6 -3.4 0 -5.5Z" transform="rotate(270)"/></g>
+    <g fill="#138808" fill-opacity=".8" transform="rotate(45)"><path d="M0 -5 C1.2 -3.4 1.2 -2 0 -1 C-1.2 -2 -1.2 -3.4 0 -5Z"/><path d="M0 -5 C1.2 -3.4 1.2 -2 0 -1 C-1.2 -2 -1.2 -3.4 0 -5Z" transform="rotate(90)"/><path d="M0 -5 C1.2 -3.4 1.2 -2 0 -1 C-1.2 -2 -1.2 -3.4 0 -5Z" transform="rotate(180)"/><path d="M0 -5 C1.2 -3.4 1.2 -2 0 -1 C-1.2 -2 -1.2 -3.4 0 -5Z" transform="rotate(270)"/></g>
+    <circle r="1.4" fill="#000080"/>
+  </g>
+</svg>

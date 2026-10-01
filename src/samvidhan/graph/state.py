@@ -8,7 +8,7 @@ from typing import Annotated, TypedDict
 
 from samvidhan.generation.citations import Citation
 from samvidhan.memory.types import SessionMemory
-from samvidhan.query.router import RouteDecision
+from samvidhan.query.router import AnswerStyle, RouteDecision
 from samvidhan.retrieval.types import RetrievalResult, ScoredChunk
 
 
@@ -22,6 +22,7 @@ class ChatState(TypedDict, total=False):
     message: str
     user_message_id: int | None  # stored user row; history loads messages before it
     started_at: float  # time.perf_counter() at graph start, for latency_ms["total"]
+    answer_style_override: AnswerStyle | None  # UI style toggle; replaces the router's choice
     memory: SessionMemory
     route: RouteDecision
     hyde_passage: str | None

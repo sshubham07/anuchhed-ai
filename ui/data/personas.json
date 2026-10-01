@@ -1,0 +1,44 @@
+{
+  "personas": [
+    {
+      "id": "upsc",
+      "emoji": "🎓",
+      "name": "UPSC Aspirant",
+      "hint": "Exam-style answers",
+      "style": "exam",
+      "starters": [
+        "Explain the Fundamental Duties under Article 51A in about 250 words.",
+        "Distinguish between the writ jurisdiction of Article 32 and Article 226.",
+        "What are the three kinds of emergency the Constitution provides for?",
+        "Discuss the composition and functions of the Finance Commission."
+      ]
+    },
+    {
+      "id": "advocate",
+      "emoji": "🧑‍⚖️",
+      "name": "Advocate",
+      "hint": "Detailed, provision by provision",
+      "style": "detailed",
+      "starters": [
+        "What safeguards does Article 22 give a person who has been arrested?",
+        "When can the President promulgate an Ordinance under Article 123, and what limits apply?",
+        "On what grounds can free speech be restricted under Article 19(2)?",
+        "How is a Judge of the Supreme Court removed under Article 124(4)?"
+      ]
+    },
+    {
+      "id": "citizen",
+      "emoji": "🙋",
+      "name": "Citizen",
+      "hint": "Short, plain answers",
+      "style": "brief",
+      "starters": [
+        "What does Article 21 say?",
+        "Can the police arrest me without telling me why?",
+        "Is education a fundamental right?",
+        "Who can become the President of India?"
+      ]
+    }
+  ],
+  "default": "citizen"
+}

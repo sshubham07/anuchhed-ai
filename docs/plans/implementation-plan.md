@@ -34,7 +34,7 @@
       thresholds, windows, rate limits, flags)
 - [x] P0.4 `core/logging.py` — structlog JSON/console, contextvars, request-id middleware (observability §1)
 - [x] P0.5 `docker-compose.yml`: `db` (pgvector/pgvector:pg16, host port 5433), `api` (profile `app`); HF cache
-      volume (HLD §18). `ui` service deferred to P6.6
+      volume (HLD §18). The UI is served by the api service (ADR-0013)
 - [x] P0.6 Alembic init + migration 001: `documents`, `chunks` (with HNSW + GIN indexes) (HLD §10)
 - [x] P0.7 FastAPI app with `/healthz`, `/readyz`, error envelope + `SamvidhanError` (standards §3–4)
 - [ ] P0.8 GitHub Actions: ruff → mypy → pytest (unit) on PR
@@ -203,19 +203,24 @@ first token p95 ≤ 2.5 s over 20 local sample requests.
 
 ---
 
-## Phase 6 — Streamlit UI
+## Phase 6 — Web UI
 
-**Goal:** a demo-ready chat UI.
-**Spec:** HLD §12.
+**Goal:** a demo-ready chat UI that feels like the Constitution talking back.
+**Spec:** `docs/specs/ui.md` · HLD §12 · ADR-0013 (static UI served by the API, replacing Streamlit).
 
-- [ ] P6.1 Chat thread with SSE streaming; session in `st.session_state` + query param
-- [ ] P6.2 Citation chips → expander with full Article text
-- [ ] P6.3 👍/👎 + optional comment
-- [ ] P6.4 New chat / clear; starter questions; header with disclaimer and edition date
-- [ ] P6.5 Debug panel behind `DEBUG_UI` (route JSON, chunks + scores, latency breakdown)
-- [ ] P6.6 Add `ui` service to docker compose
+- [x] P6.1 ADR-0013, HLD §12, `docs/specs/ui.md`, API spec §10 deltas
+- [x] P6.2 `/v1/chat` `answer_style` override + `done.debug` (behind `DEBUG_UI`) + static mount at `/`
+      (`SERVE_UI`, `UI_DIR`) + tests + OpenAPI snapshot
+- [x] P6.3 Design system (tokens, paper grain, manuscript border, logo) + landing (Preamble typewriter → search
+      box, persona chips, Article of the Day)
+- [x] P6.4 Chat: SSE streaming, citation pills + manuscript cards, "Read full Article" drawer, style toggle
+- [x] P6.5 👍/👎 + optional comment; New chat / Clear; session persistence + history reload; error states
+- [x] P6.6 Debug panel ("Behind the answer") when `done.debug` is present
+- [x] P6.7 Dockerfile copies `ui/`; Makefile `ui` target; README section
+- [ ] P6.8 Night-reading dark theme, reduced motion, mobile bottom sheet, a11y pass
 
-**Exit criteria:** full demo flow works via `docker compose up`: ask → stream → citations → follow-up → feedback.
+**Exit criteria:** full demo flow works via `docker compose --profile app up` at `/`: ask → stream → citations →
+drawer → follow-up → style toggle → feedback → reload restores history.
 
 ---
 

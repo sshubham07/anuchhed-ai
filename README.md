@@ -105,11 +105,13 @@
 </details>
 
 <details>
-<summary>⬜ <b>6 · UI</b></summary>
+<summary>🟡 <b>6 · Web UI</b> — built, packaging + polish left</summary>
 
-1. 💬 Streamlit chat with streaming answers
-2. 📎 Citation chips → full Article text
-3. 👍 Feedback buttons and a debug panel
+1. ✅ Static web UI served by the API at `/` (ADR-0013): ivory paper, saffron/green accents, navy citations
+2. ✅ Preamble typewriter → search box, persona chips, Article of the Day
+3. ✅ Streaming answers, citation pills + manuscript cards, "Read full Article" drawer
+4. ✅ Auto / Brief / Detailed / Exam toggle (`answer_style` override), 👍/👎 with comment, debug panel
+5. ⬜ Polish pass (P6.8)
 
 </details>
 
@@ -448,6 +450,7 @@ make up && make migrate         # Postgres + pgvector on :5433
 make models RERANK=1            # download bge-m3 + reranker (~4.5 GB, once)
 make ingest ARGS=--activate     # PDF in data/raw/ → 702 chunks in Postgres
 make ask Q="What does Article 21 say?"   # cited answer in the terminal
+make run                        # API + web UI → open http://localhost:8000/
 ```
 
 `make ingest ARGS=--dry-run` → writes `data/processed/chunks.jsonl` + `ingestion_report.json`, no DB.
@@ -465,7 +468,7 @@ retired Llama models).
 ![bge--m3](https://img.shields.io/badge/embeddings-bge--m3-orange)
 ![PyMuPDF](https://img.shields.io/badge/PyMuPDF-PDF-red)
 ![LiteLLM](https://img.shields.io/badge/LiteLLM-Groq%20%C2%B7%20Gemini-purple)
-![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![Web UI](https://img.shields.io/badge/UI-HTML%20%C2%B7%20CSS%20%C2%B7%20JS-FF9933)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
 ## 📚 Docs

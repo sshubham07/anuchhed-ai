@@ -27,8 +27,9 @@ def _database_url(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def settings() -> Settings:
-    """Settings isolated from the developer's `.env`."""
-    return Settings(_env_file=None, log_format="json", log_level="DEBUG")  # type: ignore[call-arg]
+    """Settings isolated from the developer's `.env`. The static UI mount is off so routes that
+    tests add after `create_app` aren't shadowed by `/`; UI tests turn it on."""
+    return Settings(_env_file=None, log_format="json", log_level="DEBUG", serve_ui=False)  # type: ignore[call-arg]
 
 
 @pytest.fixture(autouse=True)

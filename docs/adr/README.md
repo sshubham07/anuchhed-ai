@@ -16,3 +16,4 @@ We use lightweight ADRs (MADR-style). One decision per file; never edit an accep
 | [0010](0010-different-family-eval-judge.md) | Use a different model family as the RAGAS judge | Accepted |
 | [0011](0011-langgraph-orchestration.md) | LangGraph for pipeline orchestration only | Accepted |
 | [0012](0012-long-query-mode.md) | Long-query mode (answer styles, issue spotting, higher limits) | Accepted |
+| [0013](0013-static-web-ui.md) | Static web UI served by the API, instead of Streamlit | Accepted |

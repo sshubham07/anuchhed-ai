@@ -70,7 +70,7 @@ standalone queries of non-template routes). Retrieval never sees any of it (AGEN
 | POST | `/v1/sessions` | 201 `{session_id}` | 429 sessions/IP/day |
 | GET | `/v1/sessions/{id}/messages?limit=50&before=<id>` | 200 `{messages, next_before}` — ascending ids; `next_before` is the oldest id when more exist | 404 |
 | DELETE | `/v1/sessions/{id}` | 204 | 404 |
-| POST | `/v1/chat` `{session_id, message, stream=true}` | SSE or 200 JSON (HLD §11) | 404 session, 409 `SESSION_FULL`, 422 `EMPTY_MESSAGE` / `MESSAGE_TOO_LONG`, 429, 503 |
+| POST | `/v1/chat` `{session_id, message, stream=true, answer_style?}` | SSE or 200 JSON (HLD §11) | 404 session, 409 `SESSION_FULL`, 422 `EMPTY_MESSAGE` / `MESSAGE_TOO_LONG`, 429, 503 |
 | POST | `/v1/messages/{id}/feedback` `{rating: 1 or -1, comment?≤1000}` | 201 `{feedback_id}` | 404 (unknown or not an assistant message) |
 | GET | `/v1/articles/{ref}` | 200 `{ref, label, title, part_no, part_title, is_omitted, text, chunk_ids}` | 404 |
 | GET | `/v1/meta` | 200 edition date, chunker/embed/rerank versions, router/answer models, prompt versions, app version | — |
@@ -87,7 +87,7 @@ standalone queries of non-template routes). Retrieval never sees any of it (AGEN
 | `meta` | route decided | `{request_id, session_id, route_type, standalone_query, refs, answer_style}` |
 | `token` | each piece of answer text | `{text}` — LLM tokens, templated replies, "not covered" reply, the disclaimer |
 | `citations` | after citation validation; empty for templated / "not covered" replies | `{citations: [{ref, label, title}], invalid}` |
-| `done` | graph end | `{message_id, answer, low_confidence, latency_ms}` — `answer` is the stored final text |
+| `done` | graph end | `{message_id, answer, low_confidence, latency_ms}` — `answer` is the stored final text; plus `debug` when `DEBUG_UI=true` (§10) |
 | `error` | any failure after the stream started | `{code, message, request_id}`; the stream ends |
 
 Every user-visible text is emitted as `token` by the graph nodes (custom stream), so concatenated tokens equal the
@@ -114,8 +114,8 @@ key function cannot read.
 Hit → `rate_limited` log (`scope`), HTTP 429 `RATE_LIMITED` with `Retry-After` (seconds). IP hash =
 `sha256(ip + IP_HASH_SALT)`; raw IPs are never stored or logged, and settings refuse the default salt outside
 `ENV=dev`. The client IP is the TCP peer, or the first `X-Forwarded-For` entry when the peer is listed in
-`TRUSTED_PROXY_IPS` — the Streamlit UI calls the API from its server for every user, so it must forward the
-user's IP or every per-IP limit becomes global (Phase 6 sets this up).
+`TRUSTED_PROXY_IPS` — only needed behind a reverse proxy. The web UI is served by the API itself (ADR-0013),
+so browsers are the TCP peer and no forwarding is needed.
 
 Message checks run before any LLM call: stripped empty → 422 `EMPTY_MESSAGE`; longer than `MAX_MESSAGE_CHARS` →
 422 `MESSAGE_TOO_LONG` stating the limit; session at `MAX_MESSAGES_PER_SESSION` → 409 `SESSION_FULL` ("start a new
@@ -256,3 +256,18 @@ retry → fallback → `LLM_UNAVAILABLE`.
 - [ ] `MAX_CONCURRENT_STREAMS + 1` concurrent chats → the extra one gets 503 `BUSY`; slots are freed afterwards.
 - [ ] Naming more than `MAX_ARTICLE_REFS` refs adds the skipped-refs note.
 - [ ] OpenAPI snapshot updated (503 on `/v1/chat`); retrieval eval unchanged.
+
+## 10. Part 3 — UI support (P6.2, spec `ui.md`)
+
+- **`answer_style` override.** `ChatRequest.answer_style: "brief" | "detailed" | "exam" | null` (default
+  `null`). It goes into `ChatState.answer_style_override`. `route_message` replaces the router's `answer_style`
+  with it for answer routes; template routes keep the router's value. Everything downstream (the `meta` event,
+  the long-answer model choice, the stored route) sees the overridden value. `null` keeps the router's choice.
+  An invalid value returns 422 `VALIDATION_ERROR`. No prompt changes, so the router eval is unaffected.
+- **`done.debug`** (only when `DEBUG_UI=true`):
+  `{route: <RouteDecision>, chunks: [{ref, label, title, pinned, scores: {dense, lexical, rrf, rerank}}],
+  citation_stats, invalid_citations}`. The chunks are the context sent to the answer LLM, falling back to the
+  retrieved chunks. Template routes have `chunks: []`. The block is never stored.
+- **Static UI.** `SERVE_UI` (default `true`) mounts `UI_DIR` (default `ui`) at `/` after all API routes. If the
+  directory is missing, the app logs `ui_dir_missing` and skips the mount.
+

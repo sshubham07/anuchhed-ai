@@ -99,3 +99,49 @@ def test_sse_format() -> None:
         'event: token\ndata: {"text": "Art. 21 – जीवन"}\n\n'
     )
     assert json.loads(sse("done", {"a": 1}).split("data: ")[1]) == {"a": 1}
+
+
+# ---- UI support: answer_style override and the debug block (spec: api-sessions-memory §10) ----
+
+
+async def _run(
+    settings: Settings, provider: FakeProvider, *, debug: bool = False, **initial: Any
+) -> list[tuple[str, dict[str, Any]]]:
+    deps, _, _ = make(settings, provider)
+    state = {**INITIAL, **initial}
+    return [e async for e in graph_events(build_graph(deps), state, debug=debug)]  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(("override", "expected"), [("exam", "exam"), (None, "detailed")])
+async def test_answer_style_override_replaces_the_router_choice(
+    settings: Settings, override: str | None, expected: str
+) -> None:
+    provider = FakeProvider(
+        {"router": router_reply(answer_style="detailed"), "answer": "Life [Art. 21]."}
+    )
+    events = await _run(settings, provider, answer_style_override=override)
+    assert events[0] == ("meta", events[0][1]) and events[0][1]["answer_style"] == expected
+
+
+async def test_answer_style_override_leaves_template_routes_alone(settings: Settings) -> None:
+    provider = FakeProvider({"router": router_reply(type="chitchat")})
+    events = await _run(settings, provider, answer_style_override="exam")
+    assert events[0][1]["answer_style"] == "brief"
+
+
+async def test_debug_block_only_when_enabled(settings: Settings) -> None:
+    provider = FakeProvider({"router": router_reply(), "answer": "Life is protected [Art. 21]."})
+    assert "debug" not in (await _run(settings, provider))[-1][1]
+    done = (await _run(settings, provider, debug=True))[-1][1]
+    debug = done["debug"]
+    assert debug["route"]["type"] == "simple"
+    assert debug["chunks"] and debug["chunks"][0]["ref"] == "21"
+    assert debug["chunks"][0]["label"] == "Art. 21"
+    assert set(debug) == {"route", "chunks", "citation_stats", "invalid_citations"}
+    json.dumps(done)  # SSE-serializable
+
+
+async def test_debug_block_for_template_route_has_no_chunks(settings: Settings) -> None:
+    provider = FakeProvider({"router": router_reply(type="out_of_scope")})
+    debug = (await _run(settings, provider, debug=True))[-1][1]["debug"]
+    assert debug["chunks"] == [] and debug["route"]["type"] == "out_of_scope"

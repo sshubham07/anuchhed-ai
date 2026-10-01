@@ -41,7 +41,7 @@ services:
       db:
         condition: service_healthy
 
-  # ui: added in P6.6 (Streamlit, API_BASE_URL=http://api:8000)
+  # The web UI is served by the api service at / (ADR-0013); no separate ui service.
 
 volumes:
   pgdata:

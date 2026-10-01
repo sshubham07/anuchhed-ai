@@ -37,6 +37,7 @@ from samvidhan.core.errors import (
 )
 from samvidhan.core.logging import get_logger
 from samvidhan.db.repositories.chat import MessageRepository, SessionRepository
+from samvidhan.generation.citations import label
 from samvidhan.graph.builder import ChatGraph
 from samvidhan.graph.state import ChatState
 
@@ -47,9 +48,12 @@ router = APIRouter(tags=["chat"])
 Event = tuple[str, dict[str, Any]]
 
 
-async def graph_events(graph: ChatGraph, initial: ChatState) -> AsyncGenerator[Event, None]:
+async def graph_events(
+    graph: ChatGraph, initial: ChatState, *, debug: bool = False
+) -> AsyncGenerator[Event, None]:
     """Map the graph's `custom` + `updates` stream to API events, always in the order
-    `meta → token… → citations → done`; a failure ends the stream with one `error` event."""
+    `meta → token… → citations → done`; a failure ends the stream with one `error` event.
+    `debug` adds the route and scored chunks to `done` for the UI's debug panel (`DEBUG_UI`)."""
     latency: dict[str, int] = {}
     final: dict[str, Any] = {}
     citations_sent = False
@@ -86,7 +90,31 @@ async def graph_events(graph: ChatGraph, initial: ChatState) -> AsyncGenerator[E
         "low_confidence": final.get("low_confidence", False),
         "latency_ms": latency,
     }
+    if debug:
+        done["debug"] = _debug(final)
     yield "done", done
+
+
+def _debug(final: dict[str, Any]) -> dict[str, Any]:
+    """Route + chunks behind the answer, with per-stage scores (spec: api-sessions-memory §10)."""
+    route = final.get("route")
+    retrieval = final.get("retrieval")
+    chunks = final.get("context") or (retrieval.chunks if retrieval is not None else [])
+    return {
+        "route": route.model_dump(mode="json") if route is not None else None,
+        "chunks": [
+            {
+                "ref": c.ref,
+                "label": label(c.ref) if c.ref else None,
+                "title": c.article_title,
+                "pinned": c.pinned,
+                "scores": {k: round(float(v), 4) for k, v in c.scores.items()},
+            }
+            for c in chunks
+        ],
+        "citation_stats": final.get("citation_stats", {}),
+        "invalid_citations": final.get("invalid_citations", []),
+    }
 
 
 def _citations(update: dict[str, Any]) -> dict[str, Any]:
@@ -235,8 +263,9 @@ async def chat(
             "message": message,
             "user_message_id": user_row.id,
             "started_at": time.perf_counter(),
+            "answer_style_override": body.answer_style,
         }
-        events = graph_events(services.graph, initial)
+        events = graph_events(services.graph, initial, debug=settings.debug_ui)
         if not body.stream:
             return await collect(events)
 

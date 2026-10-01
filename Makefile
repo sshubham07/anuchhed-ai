@@ -53,8 +53,8 @@ migration: ## Create a migration: make migration m="add llm_calls"
 run: ## API with auto-reload on :8000
 	uv run uvicorn --factory samvidhan.api.main:create_app --reload --port $(API_PORT) --no-access-log
 
-ui: ## Streamlit UI on :8501 (Phase 6)
-	@if [ -f ui/app.py ]; then uv run streamlit run ui/app.py; else echo "ui/app.py not implemented yet (Phase 6)"; fi
+ui: ## Open the web UI (served by the API at /, ADR-0013; start it with `make run`)
+	@open http://localhost:$(API_PORT)/ 2>/dev/null || xdg-open http://localhost:$(API_PORT)/ 2>/dev/null || echo "Open http://localhost:$(API_PORT)/"
 
 models: ## Download local models (bge-m3 embeddings) into the HF cache; RERANK=1 adds the reranker
 	uv run python -m samvidhan.ingestion.models download $(if $(RERANK),--rerank,)

@@ -54,6 +54,8 @@ class ChatRequest(BaseModel):
     # Length and emptiness are checked in the route so they map to MESSAGE_TOO_LONG / EMPTY_MESSAGE.
     message: str
     stream: bool = True
+    # UI style toggle; None (Auto) keeps the router's choice (spec: api-sessions-memory §10).
+    answer_style: Literal["brief", "detailed", "exam"] | None = None
 
 
 class CitationOut(BaseModel):

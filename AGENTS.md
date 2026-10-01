@@ -31,7 +31,7 @@ text, with Article-level citations. Text in, text out.
 
 Python 3.12 · uv · FastAPI · Pydantic v2 · SQLAlchemy 2 (async) + asyncpg · Alembic · PostgreSQL 16 + pgvector ·
 LangGraph (orchestration) · BAAI/bge-m3 (embeddings) · BAAI/bge-reranker-v2-m3 · LiteLLM (Groq primary, Gemini
-fallback) · Streamlit (UI) ·
+fallback) · static HTML/CSS/JS UI served by FastAPI (ADR-0013) ·
 structlog · pytest · RAGAS · Docker Compose.
 
 ## Repository layout
@@ -48,7 +48,7 @@ src/samvidhan/
   memory/         # sessions, history window, structured memory, summarizer
   llm/            # LiteLLM wrapper, fallbacks, llm_calls logging, cost
   db/             # models, repositories, migrations (alembic)
-ui/               # Streamlit app (talks to API only)
+ui/               # static web UI (HTML/CSS/JS, served at / by the API; talks to API only)
 eval/             # golden sets, runners, RAGAS, reports
 tests/            # unit/ integration/ e2e/
 prompts/          # versioned prompt templates (*.md / *.j2)
@@ -63,7 +63,7 @@ docker compose up -d --wait db            # Postgres + pgvector on host port 543
 uv run alembic upgrade head               # migrations
 uv run python -m samvidhan.ingestion.cli ingest data/raw/constitution.pdf
 uv run uvicorn --factory samvidhan.api.main:create_app --reload   # or: make run
-uv run streamlit run ui/app.py
+open http://localhost:8000/                # web UI (served by the API)
 uv run pytest -m "not slow"               # fast tests
 uv run pytest                             # all tests
 uv run python -m eval.run --suite retrieval   # retrieval metrics (no LLM cost)

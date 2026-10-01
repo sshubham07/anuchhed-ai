@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from samvidhan import __version__
 from samvidhan.api.errors import REQUEST_ID_HEADER, register_error_handlers
@@ -58,4 +59,15 @@ def create_app(
     app.include_router(health.router)
     for module in (sessions, chat, feedback, articles):
         app.include_router(module.router, prefix="/v1")
+    _mount_ui(app, settings)
     return app
+
+
+def _mount_ui(app: FastAPI, settings: Settings) -> None:
+    """Static web UI at `/` (ADR-0013). Mounted last, so API routes always win."""
+    if not settings.serve_ui:
+        return
+    if not settings.ui_dir.is_dir():
+        log.warning("ui_dir_missing", ui_dir=str(settings.ui_dir))
+        return
+    app.mount("/", StaticFiles(directory=settings.ui_dir, html=True), name="ui")

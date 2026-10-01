@@ -1,0 +1,105 @@
+/* Design tokens (spec: ui.md §3.2). Ivory paper, saffron + green accents, navy for citations. */
+
+:root {
+  color-scheme: light;
+
+  /* paper & ink */
+  --paper: #FFFDF7;
+  --paper-2: #FBF6EA;       /* cards, excerpts */
+  --paper-3: #F5EDD9;       /* hover, wells */
+  --paper-edge: #E8DCBF;    /* card borders, rules */
+  --ink: #2B2118;
+  --ink-soft: #54473A;
+  --muted: #7D6E5A;
+  --gilt: #8A6A2F;          /* manuscript ornament lines */
+
+  /* national accents — never as full backgrounds */
+  --saffron: #FF9933;
+  --saffron-deep: #C8650A;  /* text-safe saffron on ivory */
+  --saffron-wash: #FFF0DD;
+  --green: #138808;
+  --green-wash: #E6F3E1;
+  --navy: #000080;
+  --navy-wash: #EBEBF8;
+  --on-navy: #FFFDF7;
+  --danger: #A12A1C;
+
+  --rule: rgba(43, 33, 24, 0.12);
+  --shadow-sm: 0 1px 2px rgba(43, 33, 24, 0.06);
+  --shadow: 0 1px 2px rgba(43, 33, 24, 0.05), 0 10px 30px -14px rgba(43, 33, 24, 0.22);
+  --shadow-lg: 0 24px 60px -20px rgba(43, 33, 24, 0.35);
+  --grain-opacity: 0.55;
+  --grain-blend: multiply;
+
+  /* type */
+  --font-serif: "Noto Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-sans: "Inter", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-deva: "Noto Sans Devanagari", "Kohinoor Devanagari", "Mangal", sans-serif;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.0625rem;      /* answer body (serif) */
+  --step-2: 1.25rem;
+  --step-3: 1.6rem;
+  --step-4: clamp(1.45rem, 1.1rem + 1.6vw, 2.05rem);  /* preamble */
+
+  /* shape & motion */
+  --radius-sm: 6px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --gutter: 16px;
+  --measure: 760px;
+}
+
+/* Night reading: deep ink-navy paper, ivory text, the same accents. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0E1330;
+    --paper-2: #151B40;
+    --paper-3: #1C2350;
+    --paper-edge: #2A3366;
+    --ink: #F3EBDA;
+    --ink-soft: #D3C8B2;
+    --muted: #A49CB4;
+    --gilt: #C9A65A;
+    --saffron-deep: #FFAD5C;
+    --saffron-wash: #2D2333;
+    --green: #4CC23A;
+    --green-wash: #16302A;
+    --navy: #AEB8FF;
+    --navy-wash: #1F2760;
+    --on-navy: #0E1330;
+    --danger: #FF8A7A;
+    --rule: rgba(243, 235, 218, 0.12);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+    --grain-opacity: 0.35;
+    --grain-blend: screen;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0E1330;
+  --paper-2: #151B40;
+  --paper-3: #1C2350;
+  --paper-edge: #2A3366;
+  --ink: #F3EBDA;
+  --ink-soft: #D3C8B2;
+  --muted: #A49CB4;
+  --gilt: #C9A65A;
+  --saffron-deep: #FFAD5C;
+  --saffron-wash: #2D2333;
+  --green: #4CC23A;
+  --green-wash: #16302A;
+  --navy: #AEB8FF;
+  --navy-wash: #1F2760;
+  --on-navy: #0E1330;
+  --danger: #FF8A7A;
+  --rule: rgba(243, 235, 218, 0.12);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -14px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  --grain-opacity: 0.35;
+  --grain-blend: screen;
+}

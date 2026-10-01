@@ -281,3 +281,42 @@ def test_client_ip_trusts_forwarded_for_only_from_trusted_proxies(
     headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
     request = Request({"type": "http", "client": (peer, 1234), "headers": headers})
     assert client_ip(request, ["10.0.0.5"]) == expected
+
+
+def test_chat_rejects_unknown_answer_style(client: TestClient) -> None:
+    response = client.post(
+        "/v1/chat", json={"session_id": SESSION, "message": "hi", "answer_style": "poem"}
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+# ---- Static web UI (ADR-0013) ----
+
+
+def _ui_client(settings: Settings, tmp_path: Any, **overrides: Any) -> TestClient:
+    (tmp_path / "index.html").write_text("<!doctype html><title>Samvidhan</title>")
+    update = {"serve_ui": True, "ui_dir": tmp_path, **overrides}
+    app = create_app(settings.model_copy(update=update), fake_services())
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_ui_is_served_at_root_without_shadowing_the_api(settings: Settings, tmp_path: Any) -> None:
+    with _ui_client(settings, tmp_path) as client:
+        page = client.get("/")
+        assert page.status_code == 200 and "Samvidhan" in page.text
+        assert client.get("/healthz").json() == {"status": "ok"}
+        missing = client.get("/v1/nope")
+        assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_ui_mount_can_be_disabled(settings: Settings, tmp_path: Any) -> None:
+    with _ui_client(settings, tmp_path, serve_ui=False) as client:
+        assert client.get("/").status_code == 404
+
+
+def test_missing_ui_dir_does_not_break_startup(settings: Settings, tmp_path: Any) -> None:
+    update = {"serve_ui": True, "ui_dir": tmp_path / "nope"}
+    app = create_app(settings.model_copy(update=update), fake_services())
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200

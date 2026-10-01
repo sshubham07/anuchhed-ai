@@ -75,6 +75,22 @@
       },
       "ChatRequest": {
         "properties": {
+          "answer_style": {
+            "anyOf": [
+              {
+                "enum": [
+                  "brief",
+                  "detailed",
+                  "exam"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Style"
+          },
           "message": {
             "title": "Message",
             "type": "string"

@@ -109,6 +109,10 @@ async def route_message(state: ChatState, deps: GraphDeps) -> Update:
         state["message"],
         state.get("memory", SessionMemory()),
     )
+    override = state.get("answer_style_override")
+    if override and decision.type not in TEMPLATE_ROUTES and override != decision.answer_style:
+        log.debug("answer_style_override", router=decision.answer_style, override=override)
+        decision = decision.model_copy(update={"answer_style": override})
     return {"route": decision}
 
 

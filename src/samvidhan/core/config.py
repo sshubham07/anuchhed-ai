@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     app_version: str = "dev"
     log_level: LogLevel = "INFO"
     log_format: LogFormat = "console"
-    debug_ui: bool = True
+    debug_ui: bool = True  # adds route + scored chunks to the SSE `done` event (UI debug panel)
+    serve_ui: bool = True  # mount the static web UI at / (ADR-0013)
+    ui_dir: Path = Path("ui")
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:8501"]
     )

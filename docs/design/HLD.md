@@ -97,8 +97,8 @@ Query types the system must handle (these become router `type` values, §8.2):
                  └──────────────────────────────────────────────────────────────────────────────────────────┘
 
  ┌──────────┐  HTTP/SSE  ┌──────────────────────────── FastAPI (ONLINE) ────────────────────────────────────┐
- │ Streamlit│──────────► │ Middleware: request_id · rate limit · logging context                            │
- │    UI    │ ◄───────── │                                                                                   │
+ │  Web UI  │──────────► │ Middleware: request_id · rate limit · logging context                            │
+ │ (static) │ ◄───────── │                                                                                   │
  └──────────┘   stream   │  Memory loader ─► Router/Condense (LLM #1, small) ─► Branch                     │
                          │                                                        │                          │
                          │        ┌───────────────┬───────────────┬───────────────┼──────────────┐           │
@@ -148,7 +148,7 @@ Query types the system must handle (these become router `type` values, §8.2):
 | Reranker | **BAAI/bge-reranker-v2-m3** (local) | Free, big precision gain | Cohere Rerank |
 | LLM gateway | **LiteLLM** (SDK) | One API for Groq/Gemini, fallbacks, token + cost accounting | Direct SDKs |
 | LLMs | Groq (primary), Gemini (fallback) — §6 | Free tiers, fast | Local Ollama |
-| UI | **Streamlit** | Fastest chat UI with streaming | Gradio, React |
+| UI | **Static HTML/CSS/JS**, served by FastAPI (ADR-0013) | Full design control, same-origin SSE, no build step | Streamlit, React |
 | Logging | **structlog** (JSON) | Structured, contextvars | std logging |
 | Rate limiting | `limits` (in-memory; Redis backend if > 1 replica) | Simple | — |
 | Testing | pytest, pytest-asyncio, testcontainers, **RAGAS**, Locust | See §15 | DeepEval |
@@ -630,13 +630,21 @@ CREATE INDEX ON llm_calls (model, created_at);
 
 ---
 
-## 12. UI (Streamlit)
+## 12. UI (static web, ADR-0013)
 
-- Chat thread with streaming tokens; the disclaimer and edition date are shown in the header.
-- Citations rendered as chips; clicking one expands the full Article text (`GET /v1/articles/{no}`).
-- 👍/👎 per answer, with an optional comment.
-- "New chat" button (new session) and "Clear".
-- Suggested starter questions for an empty session.
+Full detail: `docs/specs/ui.md`.
+
+- Static HTML/CSS/vanilla JS in `ui/`, served by FastAPI at `/` (`SERVE_UI=true`). The browser calls `/v1/...`
+  from the same origin. Streaming uses `fetch` + an SSE parser, because `EventSource` can't POST.
+- Look and feel: ivory paper with saffron and green accents, navy citations, serif for Constitution text, and an
+  original manuscript-style border. Never full-flag backgrounds.
+- Landing: the Preamble types itself out, then becomes the search box. Persona chips (UPSC Aspirant, Advocate,
+  Citizen) preset the answer style and starter questions; they're UI-only. Article of the Day card.
+- Chat: streaming tokens; citation pills and manuscript-style citation cards; a "Read full Article" drawer
+  (`GET /v1/articles/{no}`); an Auto / Brief / Detailed / Exam toggle sent as `answer_style`, which overrides
+  the router's choice.
+- 👍/👎 per answer, with an optional comment. "New chat" and "Clear". History reloads from the stored session.
+- Edition date and disclaimer in the footer (and on every answer).
 - **Debug panel** (`DEBUG_UI=true` only): route JSON, standalone query, retrieved chunks with dense/lexical/RRF/
   rerank scores, latency breakdown. Useful for demos and interviews.
 - The UI talks only to the API — no DB or model access.
@@ -796,8 +804,8 @@ Full detail in [observability.md](../specs/observability.md).
 ```
 docker-compose.yml
   db   : pgvector/pgvector:pg16   (volume: pgdata)
-  api  : python:3.12-slim + uv    (volume: hf_cache for model weights; preloads models at startup)
-  ui   : streamlit                (API_BASE_URL=http://api:8000)
+  api  : python:3.12-slim + uv    (volume: hf_cache for model weights; preloads models at startup;
+                                   also serves the static UI at /, ADR-0013)
 ```
 
 - Config via `.env` (template `.env.example`).

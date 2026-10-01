@@ -16,7 +16,7 @@ def openapi_document(settings: Settings) -> dict[str, Any]:
 
 
 def main() -> int:
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None, serve_ui=False)  # static files aren't part of the contract
     sys.stdout.write(json.dumps(openapi_document(settings), indent=2, sort_keys=True) + "\n")
     return 0
 

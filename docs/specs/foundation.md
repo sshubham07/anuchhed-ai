@@ -133,7 +133,7 @@ CORS allow-list from `CORS_ORIGINS`; `X-Request-ID` is an allowed and exposed he
 | `db-shell` / `db-logs` | `psql` in the container / follow DB logs |
 | `migrate` / `migrate-down` / `migration m="..."` | Alembic upgrade head / downgrade -1 / autogenerate |
 | `run` | uvicorn with reload on :8000 |
-| `ui` | Streamlit (no-op message until Phase 6) |
+| `ui` | Opens the UI served by the API at `/` (ADR-0013) |
 | `ingest` | Ingestion CLI (available from Phase 1) |
 | `lint` / `fmt` / `typecheck` | ruff check + format check + mypy / ruff format + fix / mypy |
 | `test` / `test-unit` / `test-integration` | pytest all / `-m unit` / `-m integration` |
