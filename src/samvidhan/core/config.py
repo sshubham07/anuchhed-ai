@@ -118,11 +118,11 @@ class Settings(BaseSettings):
     rrf_k: int = 60
     rerank_candidates: int = 15
     rerank_max_length: int = 512
-    final_k: int = 5
+    final_k: int = 10
     sub_query_k: int = Field(default=3, ge=1)  # chunks kept per sub-query (multi_part)
-    max_context_chunks: int = 8
+    max_context_chunks: int = 12
     max_context_chunks_long: int = 15
-    max_context_tokens: int = 3000
+    max_context_tokens: int = 7000
     max_context_tokens_long: int = 8000
     low_confidence_threshold: float = 0.05  # tuned on dev (P3.8)
 

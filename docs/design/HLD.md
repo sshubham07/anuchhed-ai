@@ -384,8 +384,8 @@ Branch table:
 3. **Lexical:** `websearch_to_tsquery('english', q)` with its terms OR-ed (AND rarely matches a natural-language
    question; ablation in `eval/reports/ablation_v1.md`) over `tsv`, ranked by `ts_rank_cd`, top `LEXICAL_K=20`.
 4. **Fusion:** Reciprocal Rank Fusion, `score = Σ 1/(60 + rank)`, top `RERANK_CANDIDATES=15`.
-5. **Rerank:** bge-reranker-v2-m3 over (standalone_query, embed_text) → top `FINAL_K=5`. Pinned chunks are always
-   included and count toward the context cap (`MAX_CONTEXT_CHUNKS=8`).
+5. **Rerank:** bge-reranker-v2-m3 over (standalone_query, embed_text) → top `FINAL_K=10`. Pinned chunks are always
+   included and count toward the context cap (`MAX_CONTEXT_CHUNKS=12`).
 6. **Confidence:** `top_rerank_score` is recorded. If it is below `LOW_CONFIDENCE_THRESHOLD` (tuned on the dev
    split) and there are no pinned chunks, the answer prompt is told retrieval is weak, and the answer must say the
    text may not cover this. Logged as `low_confidence_retrieval`.
@@ -691,9 +691,9 @@ Every limit is a config value (`.env`); defaults below. "Long" means the message
 |-------|-----------|---------|---------------|
 | Candidates per search leg | `DENSE_K`, `LEXICAL_K` | 20 each | — |
 | Rerank candidates (per query/sub-query) | `RERANK_CANDIDATES` | 15 | — |
-| Final chunks per query/sub-query | `FINAL_K` | 5 | — |
-| Context chunks (brief / long) | `MAX_CONTEXT_CHUNKS` / `MAX_CONTEXT_CHUNKS_LONG` | 8 / 15 | Lowest-scored chunks dropped (pinned chunks kept first) |
-| Context tokens (brief / long) | `MAX_CONTEXT_TOKENS` / `MAX_CONTEXT_TOKENS_LONG` | 3,000 / 8,000 | Same as above |
+| Final chunks per query/sub-query | `FINAL_K` | 10 | — |
+| Context chunks (brief / long) | `MAX_CONTEXT_CHUNKS` / `MAX_CONTEXT_CHUNKS_LONG` | 12 / 15 | Lowest-scored chunks dropped (pinned chunks kept first) |
+| Context tokens (brief / long) | `MAX_CONTEXT_TOKENS` / `MAX_CONTEXT_TOKENS_LONG` | 7,000 / 8,000 | Same as above |
 
 **Generation**
 

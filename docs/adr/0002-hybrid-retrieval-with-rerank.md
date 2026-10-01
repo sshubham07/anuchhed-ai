@@ -8,7 +8,7 @@
 Dense embeddings handle plain-language questions but are weak at exact tokens such as "21A" or "Tenth Schedule". Keyword search is the opposite.
 
 ## Decision
-Run dense (bge-m3, pgvector HNSW) and lexical (Postgres FTS) search in parallel, merge with Reciprocal Rank Fusion, then rerank the top 15 with bge-reranker-v2-m3 and keep the top 5.
+Run dense (bge-m3, pgvector HNSW) and lexical (Postgres FTS) search in parallel, merge with Reciprocal Rank Fusion, then rerank the top 15 with bge-reranker-v2-m3 and keep the top 5 (raised to 10 on 2026-10-01 to give the answer step more context; `MAX_CONTEXT_CHUNKS` 8 → 12 and `MAX_CONTEXT_TOKENS` 3,000 → 7,000 so the caps do not trim it back).
 
 ## Alternatives considered
 - Dense only — misses exact references.

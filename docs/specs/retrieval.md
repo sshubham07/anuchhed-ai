@@ -198,7 +198,7 @@ correct answers. Re-tune when the golden set reaches v1.0.
 
 No new keys. Uses existing settings: `EMBED_MODEL`, `RERANK_MODEL`, `MODEL_DEVICE`, `EMBED_BATCH_SIZE`,
 `EMBED_MAX_LENGTH`, `DENSE_K=20`, `LEXICAL_K=20`, `RRF_K=60`, `RERANK_CANDIDATES=15`, `RERANK_MAX_LENGTH=512`,
-`FINAL_K=5`, `MAX_CONTEXT_CHUNKS=8`, `MAX_ARTICLE_REFS=10`, `LOW_CONFIDENCE_THRESHOLD=0.05` (tuned on dev, §3.8).
+`FINAL_K=10`, `MAX_CONTEXT_CHUNKS=12`, `MAX_ARTICLE_REFS=10`, `LOW_CONFIDENCE_THRESHOLD=0.05` (tuned on dev, §3.8).
 
 ## 5. Failure modes
 

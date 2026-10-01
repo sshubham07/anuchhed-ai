@@ -124,7 +124,7 @@ non-zero exit code on gate failure.
 - [x] P3.3 `retrieval/fusion.py` — RRF (k=60), unit-tested
 - [x] P3.4 `retrieval/lookup.py` — pinned fetch by `article_no` / `schedule_no`; ref normalizer
       (`"Art. 21-A"` → `21A`) validated against the known list
-- [x] P3.5 `retrieval/rerank.py` — bge-reranker-v2-m3, max_length 512, candidates 15 → top 5; skip-on-error
+- [x] P3.5 `retrieval/rerank.py` — bge-reranker-v2-m3, max_length 512, candidates 15 → top 5 (raised to 10 on 2026-10-01); skip-on-error
 - [x] P3.6 `retrieval/service.py` — orchestrates pinned + dense + lexical + fusion + rerank; returns a trace
       (ids, per-leg ranks, scores, top_score, low_confidence)
 - [x] P3.7 Ablation run recorded in `eval/reports/ablation_v1.md`: dense only / lexical only / hybrid / hybrid +
