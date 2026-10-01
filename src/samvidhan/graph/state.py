@@ -20,6 +20,8 @@ class ChatState(TypedDict, total=False):
     request_id: str
     session_id: uuid.UUID | None
     message: str
+    user_message_id: int | None  # stored user row; history loads messages before it
+    started_at: float  # time.perf_counter() at graph start, for latency_ms["total"]
     memory: SessionMemory
     route: RouteDecision
     hyde_passage: str | None
@@ -33,3 +35,5 @@ class ChatState(TypedDict, total=False):
     citation_stats: dict[str, int]
     invalid_citations: list[str]
     latency_ms: Annotated[dict[str, int], merge_latency]
+    ttft_ms: int | None
+    message_id: int | None  # stored assistant row (None outside the API)

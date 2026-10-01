@@ -150,7 +150,7 @@ Query types the system must handle (these become router `type` values, §8.2):
 | LLMs | Groq (primary), Gemini (fallback) — §6 | Free tiers, fast | Local Ollama |
 | UI | **Streamlit** | Fastest chat UI with streaming | Gradio, React |
 | Logging | **structlog** (JSON) | Structured, contextvars | std logging |
-| Rate limiting | slowapi (in-memory; Redis backend if > 1 replica) | Simple | — |
+| Rate limiting | `limits` (in-memory; Redis backend if > 1 replica) | Simple | — |
 | Testing | pytest, pytest-asyncio, testcontainers, **RAGAS**, Locust | See §15 | DeepEval |
 | Packaging | Docker Compose | One command local stack | — |
 | CI | GitHub Actions | Lint, type-check, tests, retrieval eval | — |
@@ -433,7 +433,8 @@ Post-processing:
   `invalid_citation` (WARNING). This tracks hallucinated-citation rate.
 - Append the disclaimer: *"Informational only, based on the text of the Constitution of India (as on <date>).
   Not legal advice."*
-- SSE events: `meta` (message_id, route type) → `token`* → `citations` (validated list with titles) → `done`
+- SSE events: `meta` (route type, standalone query, refs) → `token`* → `citations` (validated list with titles) →
+  `done` (message_id, final answer, latency) — contract in `docs/specs/api-sessions-memory.md` §3.5
   (latency breakdown). On error: `error` event with code.
 
 ### 8.6 Resilience
@@ -618,7 +619,7 @@ CREATE INDEX ON llm_calls (model, created_at);
 {
   "message_id": 4812,
   "answer": "Article 21 provides that no person shall be deprived of his life or personal liberty except according to procedure established by law [Art. 21]. …",
-  "citations": [{"ref": "Art. 21", "article_no": "21", "title": "Protection of life and personal liberty"}],
+  "citations": [{"ref": "21", "label": "Art. 21", "title": "Protection of life and personal liberty"}],
   "route": {"type": "simple", "standalone_query": "…"},
   "low_confidence": false,
   "latency_ms": {"router": 310, "retrieval": 180, "rerank": 420, "ttft": 1150, "total": 2600}

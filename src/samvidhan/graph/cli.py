@@ -137,32 +137,25 @@ async def _ask(
     first_call = len(usage.records)
     started = time.perf_counter()
     state: dict[str, Any] = {}
-    streamed = False
     out(f"\nQ: {question}\nA: ")
     initial: ChatState = {"request_id": request_id, "session_id": session_id, "message": question}
     async for mode, raw in graph.astream(initial, stream_mode=["custom", "values"]):
         chunk = cast(dict[str, Any], raw)
-        if mode == "custom" and chunk.get("type") == "token":
-            streamed = True
+        if (
+            mode == "custom" and chunk.get("type") == "token"
+        ):  # every visible text, incl. disclaimer
             out(chunk["text"])
             sys.stdout.flush()
         elif mode == "values":
             state = chunk
     total_ms = round((time.perf_counter() - started) * 1000)
     await llm.recorder.drain()
-    _report(state, streamed, total_ms, usage.records[first_call:], debug)
+    _report(state, total_ms, usage.records[first_call:], debug)
     structlog.contextvars.unbind_contextvars("request_id", "session_id")
 
 
-def _report(
-    state: dict[str, Any], streamed: bool, total_ms: int, calls: Sequence[Any], debug: bool
-) -> None:
-    answer: str = state.get("answer", "")
-    if streamed:
-        disclaimer = answer.rsplit("\n\n", 1)[-1]  # the streamed text had no disclaimer yet
-        out(f"\n\n{disclaimer}\n")
-    else:
-        out(f"{answer}\n")
+def _report(state: dict[str, Any], total_ms: int, calls: Sequence[Any], debug: bool) -> None:
+    out("\n")
     if state.get("invalid_citations"):
         out(f"(removed citations not in the retrieved text: {state['invalid_citations']})\n")
     citations = state.get("citations", [])

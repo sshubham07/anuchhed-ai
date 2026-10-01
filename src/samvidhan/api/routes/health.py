@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from samvidhan.api.deps import DbProbe, get_app_settings, get_db_probe
+from samvidhan.api.deps import DbProbe, get_app_settings, get_corpus_probe, get_db_probe
 from samvidhan.api.schemas import ErrorEnvelope, HealthResponse, ReadyResponse
 from samvidhan.core.config import Settings
 from samvidhan.core.errors import ServiceUnavailableError
@@ -26,12 +26,19 @@ async def healthz() -> HealthResponse:
 async def readyz(
     settings: Annotated[Settings, Depends(get_app_settings)],
     db_probe: Annotated[DbProbe, Depends(get_db_probe)],
+    corpus_probe: Annotated[DbProbe, Depends(get_corpus_probe)],
 ) -> ReadyResponse:
-    """Dependencies reachable. Model and active-document checks are added in Phase 1/3."""
-    try:
-        async with asyncio.timeout(settings.readiness_timeout_s):
-            await db_probe()
-    except Exception as exc:
-        log.warning("readiness_check_failed", check="database", error_type=type(exc).__name__)
-        raise ServiceUnavailableError("Database unavailable") from exc
-    return ReadyResponse(checks={"database": "ok"})
+    """Database reachable and an active document present. Models are loaded before the app
+    starts serving (lifespan), so a running app has them."""
+    for check, probe, message in (
+        ("database", db_probe, "Database unavailable"),
+        ("active_document", corpus_probe, "No active document"),
+    ):
+        try:
+            async with asyncio.timeout(settings.readiness_timeout_s):
+                await probe()
+        except Exception as exc:
+            log.warning("readiness_check_failed", check=check, error_type=type(exc).__name__)
+            raise ServiceUnavailableError(message) from exc
+    # The lifespan fails when the models can't load, so a serving app has them.
+    return ReadyResponse(checks={"database": "ok", "active_document": "ok", "models": "ok"})

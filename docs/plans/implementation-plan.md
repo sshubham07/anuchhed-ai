@@ -175,19 +175,19 @@ produces an `llm_calls` row (integration test); a provider failure falls back cl
 ## Phase 5 — API, sessions, chat history & memory
 
 **Goal:** a conversational API that meets the HLD contract.
-**Spec:** HLD §8.1, §8.4, §9, §11.
+**Spec:** `docs/specs/api-sessions-memory.md` · HLD §8.1, §8.4, §9, §11.
 
-- [ ] P5.1 Migration 004: `chat_sessions`, `chat_messages`, `feedback`
-- [ ] P5.2 Repositories for sessions/messages/feedback
-- [ ] P5.3 `POST /v1/sessions`, `GET /v1/sessions/{id}/messages`, `DELETE /v1/sessions/{id}`
-- [ ] P5.4 `memory/loader.py` — summary + structured memory + last 6 messages
-- [ ] P5.5 `memory/structured.py` — update `last_articles`, `articles_discussed` (15), `parts_discussed`,
+- [x] P5.1 Migration 004: `chat_sessions`, `chat_messages`, `feedback`
+- [x] P5.2 Repositories for sessions/messages/feedback
+- [x] P5.3 `POST /v1/sessions`, `GET /v1/sessions/{id}/messages`, `DELETE /v1/sessions/{id}`
+- [x] P5.4 `memory/loader.py` — summary + structured memory + last 6 messages
+- [x] P5.5 `memory/structured.py` — update `last_articles`, `articles_discussed` (15), `parts_discussed`,
       `recent_topics` (5) after each answer
-- [ ] P5.6 `POST /v1/chat` — runs the LangGraph graph (HLD §8.1–8.1.1), maps graph stream events to SSE
+- [x] P5.6 `POST /v1/chat` — runs the LangGraph graph (HLD §8.1–8.1.1), maps graph stream events to SSE
       `meta/token/citations/done/error`, and
       `stream=false` JSON mode; persist route, trace, latency breakdown, prompt version
-- [ ] P5.7 `POST /v1/messages/{id}/feedback`, `GET /v1/articles/{no}`, `GET /v1/meta`
-- [ ] P5.8 Rate limiting (slowapi): per session, per IP, sessions/IP/day; message length limit
+- [x] P5.7 `POST /v1/messages/{id}/feedback`, `GET /v1/articles/{no}`, `GET /v1/meta`
+- [x] P5.8 Rate limiting (`limits`, see spec api-sessions-memory §3.6): per session, per IP, sessions/IP/day; message length limit
 - [ ] P5.9 Session expiry job (30 days) + feedback anonymization; CLI `samvidhan.ops.cleanup`
 - [ ] P5.10 Multi-turn eval: standalone correctness via `eval.run --suite router` over `multi_turn.jsonl`
 - [ ] P5.11 Log completeness test: one request emits every stage event with the same `request_id`

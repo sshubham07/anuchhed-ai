@@ -3,11 +3,8 @@
 The Postgres-backed end-to-end run is `tests/integration/test_graph_e2e.py`.
 """
 
-import json
 import uuid
-from collections.abc import Sequence
-from datetime import date
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
@@ -15,61 +12,12 @@ from samvidhan.core.config import Settings
 from samvidhan.generation import templates
 from samvidhan.graph import nodes
 from samvidhan.graph.builder import build_graph
-from samvidhan.graph.nodes import GraphDeps, load_prompts
 from samvidhan.graph.state import ChatState
-from samvidhan.llm.fake import FakeProvider, fake_llm
-from samvidhan.llm.recorder import MemoryCallRecorder
-from samvidhan.memory.store import InMemorySessionStore
+from samvidhan.llm.fake import FakeProvider
 from samvidhan.query.router import RouteDecision
-from samvidhan.retrieval.service import RetrievalService
-from samvidhan.retrieval.types import RetrievalResult
-from tests.unit.retrieval_helpers import chunk
+from tests.unit.graph_helpers import ART21, StubRetrieval, make, router_reply
 
 TEMPLATE = "ambiguous / out_of_scope / chitchat"
-ART21 = chunk("art-21#0", article_no="21", text="Article 21: no person shall be deprived of life")
-ART22 = chunk("art-22#0", article_no="22", text="Article 22: grounds of arrest")
-
-
-class StubRetrieval:
-    """Records calls; returns fixed chunks (empty for queries containing 'nothing')."""
-
-    def __init__(self) -> None:
-        self.calls: list[dict[str, Any]] = []
-
-    async def retrieve(
-        self, query: str, *, refs: Sequence[str] = (), dense_query: str | None = None
-    ) -> RetrievalResult:
-        self.calls.append({"query": query, "refs": list(refs), "dense_query": dense_query})
-        chunks = [] if "nothing" in query else [ART21, ART22]
-        return RetrievalResult(
-            chunks=chunks,
-            candidates=chunks,
-            ranked=chunks,
-            refs=list(refs),
-            top_score=0.9 if chunks else None,
-            low_confidence=not chunks,
-            latency_ms={"total": 1},
-            trace={"mode": "stub"},
-        )
-
-
-def router_reply(**fields: Any) -> str:
-    return json.dumps({"type": "simple", "standalone_query": "q", **fields})
-
-
-def make(
-    settings: Settings, provider: FakeProvider
-) -> tuple[GraphDeps, StubRetrieval, MemoryCallRecorder]:
-    retrieval, recorder = StubRetrieval(), MemoryCallRecorder()
-    deps = GraphDeps(
-        llm=fake_llm(provider, recorder),
-        retrieval=cast(RetrievalService, retrieval),
-        memory=InMemorySessionStore(max_messages=12),
-        settings=settings,
-        prompts=load_prompts(settings),
-        edition=date(2024, 5, 1),
-    )
-    return deps, retrieval, recorder
 
 
 @pytest.mark.parametrize(
@@ -147,7 +95,8 @@ async def test_compiled_graph_simple_route_streams_and_cites(settings: Settings)
             tokens.append(chunk_["text"])
         else:
             final = chunk_
-    assert "".join(tokens) == "You must be told the grounds of arrest [Art. 22]."
+    assert "".join(tokens) == final["answer"]  # the disclaimer is streamed too
+    assert final["answer"].startswith("You must be told the grounds of arrest [Art. 22].\n\n")
     assert [c.ref for c in final["citations"]] == ["22"]
     assert final["answer"].endswith("Not legal advice._")
     assert retrieval.calls == [
@@ -155,7 +104,7 @@ async def test_compiled_graph_simple_route_streams_and_cites(settings: Settings)
     ]
     assert [r.purpose for r in recorder.records] == ["router", "answer"]
     assert set(final["latency_ms"]) == {
-        "load_memory", "route", "retrieve", "generate", "validate_citations", "save_turn"
+        "load_memory", "route", "retrieve", "generate", "validate_citations", "save_turn", "ttft"
     }  # fmt: skip
 
 
@@ -206,6 +155,15 @@ async def test_compiled_graph_template_route_makes_one_llm_call(settings: Settin
     final = await build_graph(deps).ainvoke({"message": "BNS punishment?", "session_id": None})
     assert final["answer"] == templates.OUT_OF_SCOPE
     assert retrieval.calls == [] and [r.purpose for r in recorder.records] == ["router"]
+
+
+async def test_template_reply_is_streamed_as_a_token(settings: Settings) -> None:
+    provider = FakeProvider({"router": router_reply(type="chitchat")})
+    deps, _, _ = make(settings, provider)
+    initial: ChatState = {"message": "thanks!", "session_id": None}
+    stream = build_graph(deps).astream(initial, stream_mode="custom")
+    tokens = [chunk["text"] async for chunk in stream]
+    assert tokens == [templates.chitchat("thanks!")]
 
 
 async def test_follow_up_sees_the_previous_turn(settings: Settings) -> None:

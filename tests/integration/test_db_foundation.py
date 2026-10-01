@@ -16,6 +16,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from samvidhan.api.main import create_app
 from samvidhan.core.config import Settings
+from tests.api_helpers import fake_services
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -49,7 +50,14 @@ def test_migration_001_upgrade_and_downgrade(database_url: str) -> None:
     command.upgrade(config, "head")
 
     tables = _query(database_url, "SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-    assert {"documents", "chunks", "alembic_version"} <= set(tables)
+    assert {
+        "documents",
+        "chunks",
+        "llm_calls",
+        "chat_sessions",
+        "chat_messages",
+        "feedback",
+    } <= set(tables)
     assert _query(database_url, "SELECT extname FROM pg_extension") == ["plpgsql", "vector"]
     indexes = _query(database_url, "SELECT indexdef FROM pg_indexes WHERE tablename = 'chunks'")
     assert any("hnsw (embedding vector_cosine_ops)" in ix for ix in indexes)
@@ -58,23 +66,25 @@ def test_migration_001_upgrade_and_downgrade(database_url: str) -> None:
 
     command.downgrade(config, "base")
     tables = _query(database_url, "SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-    assert "chunks" not in tables
-    assert "documents" not in tables
+    assert set(tables) <= {"alembic_version"}
 
     command.upgrade(config, "head")  # re-applies cleanly after a downgrade
 
 
-def test_readyz_against_real_database(database_url: str, settings: Settings) -> None:
-    app = create_app(settings.model_copy(update={"database_url": SecretStr(database_url)}))
-    with TestClient(app) as client:
+def test_readyz_without_an_active_document(database_url: str, settings: Settings) -> None:
+    """Database reachable but nothing ingested: not ready (the ready path is in test_chat_api)."""
+    settings = settings.model_copy(update={"database_url": SecretStr(database_url)})
+    with TestClient(create_app(settings, fake_services())) as client:
         response = client.get("/readyz")
-    assert response.status_code == 200
-    assert response.json()["checks"] == {"database": "ok"}
+    assert response.status_code == 503
+    assert response.json()["error"]["message"] == "No active document"
 
 
 def test_readyz_when_database_unreachable(settings: Settings) -> None:
     unreachable = "postgresql+asyncpg://test:test@127.0.0.1:1/samvidhan"
-    app = create_app(settings.model_copy(update={"database_url": SecretStr(unreachable)}))
+    app = create_app(
+        settings.model_copy(update={"database_url": SecretStr(unreachable)}), fake_services()
+    )
     with TestClient(app) as client:
         response = client.get("/readyz")
     assert response.status_code == 503

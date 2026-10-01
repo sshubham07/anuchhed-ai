@@ -47,7 +47,8 @@ def _timed(name: str, fn: NodeFn, deps: GraphDeps) -> BoundNode:
     async def node(state: ChatState) -> Update:
         started = time.perf_counter()
         update = await fn(state, deps)
-        return {**update, "latency_ms": {name: round((time.perf_counter() - started) * 1000)}}
+        elapsed = round((time.perf_counter() - started) * 1000)
+        return {**update, "latency_ms": {**update.get("latency_ms", {}), name: elapsed}}
 
     node.__name__ = name
     return node

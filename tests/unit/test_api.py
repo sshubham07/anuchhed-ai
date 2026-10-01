@@ -5,15 +5,16 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from samvidhan.api.deps import DbProbe, get_db_probe
+from samvidhan.api.deps import DbProbe, client_ip, get_corpus_probe, get_db_probe
 from samvidhan.api.main import create_app
 from samvidhan.core.config import Settings
 from samvidhan.core.errors import NotFoundError
 from samvidhan.core.logging import configure_logging, get_logger
+from tests.api_helpers import fake_services
 
 
 class Echo(BaseModel):
@@ -50,9 +51,10 @@ def _add_test_routes(app: FastAPI) -> None:
 
 @pytest.fixture
 def app(settings: Settings) -> FastAPI:
-    app = create_app(settings)
+    app = create_app(settings, fake_services())
     _add_test_routes(app)
     app.dependency_overrides[get_db_probe] = lambda: _ok_probe
+    app.dependency_overrides[get_corpus_probe] = lambda: _ok_probe
     return app
 
 
@@ -83,7 +85,10 @@ def test_healthz(client: TestClient) -> None:
 def test_readyz_ok(client: TestClient) -> None:
     response = client.get("/readyz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "checks": {"database": "ok"}}
+    assert response.json() == {
+        "status": "ready",
+        "checks": {"database": "ok", "active_document": "ok", "models": "ok"},
+    }
 
 
 def test_readyz_db_down_returns_503_envelope(
@@ -202,3 +207,77 @@ def test_cors_preflight_allows_ui_origin(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:8501"
     assert response.headers["X-Request-ID"]
+
+
+# ---- /v1/chat input checks and rate limits (no DB: they run before the session lookup) ----
+
+SESSION = "0190f3c4-0000-7000-8000-000000000001"
+
+
+@pytest.mark.parametrize(
+    ("message", "code"),
+    [("   ", "EMPTY_MESSAGE"), ("x" * 4001, "MESSAGE_TOO_LONG")],
+)
+def test_chat_rejects_bad_messages_before_any_llm_call(
+    client: TestClient, log_stream: io.StringIO, message: str, code: str
+) -> None:
+    response = client.post("/v1/chat", json={"session_id": SESSION, "message": message})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == code
+    rejected = [line for line in _lines(log_stream) if line["event"] == "input_rejected"]
+    assert rejected and rejected[0]["reason"] in {"empty", "too_long"}
+    if code == "MESSAGE_TOO_LONG":
+        assert "4000" in response.json()["error"]["message"]
+
+
+def test_chat_rate_limit_per_session_returns_429_with_retry_after(settings: Settings) -> None:
+    app = create_app(
+        settings.model_copy(update={"rate_limit_session": "2/minute"}), fake_services()
+    )
+    log_stream = io.StringIO()
+    configure_logging(settings, stream=log_stream)  # create_app configured stdout
+    with TestClient(app, raise_server_exceptions=False) as client:
+        codes = [
+            client.post("/v1/chat", json={"session_id": SESSION, "message": " "}).status_code
+            for _ in range(3)
+        ]
+        other = client.post(
+            "/v1/chat",
+            json={"session_id": "0190f3c4-0000-7000-8000-000000000002", "message": " "},
+        )
+        limited = client.post("/v1/chat", json={"session_id": SESSION, "message": " "})
+    assert codes == [422, 422, 429]
+    assert other.status_code == 422  # a different session has its own budget
+    assert limited.json()["error"]["code"] == "RATE_LIMITED"
+    assert 1 <= int(limited.headers["Retry-After"]) <= 60
+    assert any(
+        line["event"] == "rate_limited" and line["scope"] == "session"
+        for line in _lines(log_stream)
+    )
+
+
+def test_chat_rate_limit_per_ip(settings: Settings) -> None:
+    app = create_app(settings.model_copy(update={"rate_limit_ip": "1/minute"}), fake_services())
+    with TestClient(app, raise_server_exceptions=False) as client:
+        first = client.post("/v1/chat", json={"session_id": SESSION, "message": " "})
+        second = client.post(
+            "/v1/chat",
+            json={"session_id": "0190f3c4-0000-7000-8000-000000000002", "message": " "},
+        )
+    assert (first.status_code, second.status_code) == (422, 429)
+
+
+@pytest.mark.parametrize(
+    ("peer", "forwarded", "expected"),
+    [
+        ("10.0.0.5", "203.0.113.7, 10.0.0.5", "203.0.113.7"),  # trusted UI server forwards
+        ("198.51.100.9", "203.0.113.7", "198.51.100.9"),  # untrusted peer can't spoof
+        ("10.0.0.5", None, "10.0.0.5"),
+    ],
+)
+def test_client_ip_trusts_forwarded_for_only_from_trusted_proxies(
+    peer: str, forwarded: str | None, expected: str
+) -> None:
+    headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
+    request = Request({"type": "http", "client": (peer, 1234), "headers": headers})
+    assert client_ip(request, ["10.0.0.5"]) == expected

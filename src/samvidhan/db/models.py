@@ -18,6 +18,7 @@ from sqlalchemy import (
     Integer,
     MetaData,
     Numeric,
+    SmallInteger,
     Text,
     UniqueConstraint,
     func,
@@ -25,7 +26,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     text as sql_text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 EMBEDDING_DIM = 1024  # bge-m3 dense output size (ADR-0008); changing it needs a migration.
@@ -132,4 +133,69 @@ class LlmCall(Base):
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), server_default=sql_text("0"))
     status: Mapped[str] = mapped_column(Text)
     error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatSession(Base):
+    """Anonymous session (HLD §9.1). `memory` holds the structured memory (HLD §9.3)."""
+
+    __tablename__ = "chat_sessions"
+    __table_args__ = (
+        Index("ix_chat_sessions_last_active_at", "last_active_at"),
+        Index("ix_chat_sessions_client_ip_hash_created_at", "client_ip_hash", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)  # UUIDv7
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # future auth
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    memory: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=sql_text("'{}'::jsonb"))
+    summary: Mapped[str | None] = mapped_column(Text)
+    summarized_upto_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    summary_version: Mapped[str | None] = mapped_column(Text)
+    client_ip_hash: Mapped[str | None] = mapped_column(Text)  # sha256(ip + salt)
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    __table_args__ = (
+        CheckConstraint("role IN ('user','assistant')", name="role"),
+        Index("ix_chat_messages_session_id_id", "session_id", sql_text("id DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="CASCADE")
+    )
+    request_id: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(Text)
+    route: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # RouteDecision (assistant rows)
+    standalone_query: Mapped[str | None] = mapped_column(Text)
+    cited_articles: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), server_default=sql_text("'{}'::text[]")
+    )
+    retrieval_trace: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    prompt_version: Mapped[str | None] = mapped_column(Text)
+    latency_ms: Mapped[dict[str, int] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Feedback(Base):
+    """Thumbs up/down. `question` / `answer` are snapshots that survive session expiry
+    (HLD §9.1)."""
+
+    __tablename__ = "feedback"
+    __table_args__ = (CheckConstraint("rating IN (-1, 1)", name="rating"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    message_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("chat_messages.id", ondelete="SET NULL")
+    )
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    comment: Mapped[str | None] = mapped_column(Text)
+    question: Mapped[str | None] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

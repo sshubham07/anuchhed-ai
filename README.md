@@ -4,8 +4,8 @@
 
 **Ask the Constitution of India anything — get answers cited to the exact Article.**
 
-![Phase](https://img.shields.io/badge/phase-4%20LLM%20%26%20router%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-287%20passing-2ea44f)
+![Phase](https://img.shields.io/badge/phase-5%20chat%20API%20built-f9c513)
+![Tests](https://img.shields.io/badge/tests-313%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
@@ -20,7 +20,7 @@
 
 ## 🗺️ Where we are
 
-<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API → 6 UI → 7 v1.0"></a>
+<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API (built, 4 steps left) → 6 UI → 7 v1.0"></a>
 
 <sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
 
@@ -85,12 +85,18 @@
 </details>
 
 <details>
-<summary>⬜ <b>5 · Chat API</b></summary>
+<summary>🟡 <b>5 · Chat API</b> — built; cleanup job, multi-turn eval and limit tests left</summary>
 
-1. 🗂️ Sessions, messages and feedback tables
-2. 🧠 Chat memory — last messages + Articles discussed
-3. 📡 `POST /v1/chat` with streaming
-4. 🚦 Rate limits and message size limits
+1. ✅ Sessions, messages and feedback tables (migration 004) + repositories
+2. ✅ `POST /v1/sessions`, history pages, `DELETE` (messages go, feedback snapshots stay)
+3. ✅ Chat memory in Postgres — last 6 messages + `last_articles`, Articles and Parts discussed, recent topics;
+   "what are its exceptions?" resolves to the Article cited last
+4. ✅ `POST /v1/chat` — the LangGraph pipeline streamed as SSE (`meta → token… → citations → done`), or JSON
+5. ✅ Feedback, `GET /v1/articles/{no}` (citation chips), `GET /v1/meta`; OpenAPI snapshot in
+   [`docs/api/openapi.json`](docs/api/openapi.json)
+6. ✅ Rate limits (per session, per IP, new chats per IP per day) and message size / empty / full-chat checks
+7. ⏳ 30-day session cleanup job + feedback anonymisation
+8. ⬜ Multi-turn router eval, log completeness test, full limit test suite (concurrency, timeouts)
 
 </details>
 
@@ -183,6 +189,46 @@ llm_call purpose=answer model=fake/model status=ok …
 
 </details>
 
+<details>
+<summary>📡 <b>Click — talk to the API with curl</b></summary>
+
+```bash
+make run                                             # API on :8000 (loads bge-m3 + reranker first)
+SID=$(curl -s -XPOST localhost:8000/v1/sessions | jq -r .session_id)
+curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
+  -d "{\"session_id\":\"$SID\",\"message\":\"What does Article 21 say?\"}"
+curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
+  -d "{\"session_id\":\"$SID\",\"message\":\"What are its exceptions?\"}"
+```
+
+```text
+event: meta
+data: {"route_type": "simple", "standalone_query": "What are the exceptions and limitations to the right
+       to life and personal liberty under Article 21?", "refs": ["21"], …}      ← "its" = Art. 21, from memory
+event: token
+data: {"text": "The Constitution’s text of Article 21 states only"}               ← …111 token events
+event: citations
+data: {"citations": [{"ref": "21", "label": "Art. 21", "title": "Protection of life and personal liberty"}]}
+event: done
+data: {"message_id": 4, "answer": "…", "low_confidence": false, "latency_ms": {"route": 592, …}}
+```
+
+| Endpoint | What it does |
+|:--|:--|
+| `POST /v1/sessions` | New anonymous chat → `{session_id}` (UUIDv7) |
+| `GET /v1/sessions/{id}/messages?limit=&before=` | History, oldest first, paged |
+| `DELETE /v1/sessions/{id}` | Clear the chat |
+| `POST /v1/chat` | `{session_id, message, stream}` → SSE, or JSON with `stream: false` |
+| `POST /v1/messages/{id}/feedback` | 👍 / 👎 `{rating: 1 or -1, comment?}` |
+| `GET /v1/articles/{no}` | Full text of `21A`, `21-A`, `Sch. 7`, `preamble`… |
+| `GET /v1/meta` | Edition date, pipeline versions, model ids |
+
+Limits: 10 chats/min per session, 30/min and 300/day per IP, 20 new chats per IP per day (IP = TCP peer, or `X-Forwarded-For` from `TRUSTED_PROXY_IPS`), 4,000-character
+messages, 200 messages per chat → HTTP 429 (with `Retry-After`) / 422 / 409. Spec:
+[`api-sessions-memory.md`](docs/specs/api-sessions-memory.md).
+
+</details>
+
 ### 🔀 Router eval
 
 `make eval-router` runs every dev question through the real router (gates: type accuracy ≥ 0.90, refs F1 ≥ 0.95,
@@ -260,7 +306,7 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 | Check | Result |
 |:--|:-:|
-| All tests (unit + integration + real PDF) | 🟢 **287 / 287** (+2 live-LLM tests skipped without keys) |
+| All tests (unit + integration + real PDF) | 🟢 **313 / 313** (+2 live-LLM tests, `make test-llm`) |
 | Articles found vs Contents list | 🟢 **506 / 506** |
 | Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
 | Chunks over the 1,024-token limit | 🟢 **0** |
@@ -269,6 +315,8 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 | Every LLM attempt → one `llm_calls` row (FakeLLM over Postgres) | 🟢 |
 | Bad primary key → fallback model | 🟢 (FakeLLM; live check: `make test-llm`) |
 | Graph end to end, all 7 route types (FakeLLM + real Postgres search) | 🟢 |
+| `/v1` API over Postgres: SSE order, follow-up resolved from stored memory, history, feedback, limits | 🟢 |
+| Live: two-turn `curl -N` chat, follow-up → Art. 21 via `last_articles` | 🟢 |
 | ruff · mypy --strict | 🟢 clean |
 
 <details>

@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from samvidhan.api.schemas import ErrorBody, ErrorEnvelope
-from samvidhan.core.errors import SamvidhanError, ValidationFailedError
+from samvidhan.core.errors import RateLimitedError, SamvidhanError, ValidationFailedError
 
 REQUEST_ID_HEADER = "X-Request-ID"
 
@@ -21,11 +21,15 @@ _HTTP_CODES = {404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 429: "RATE_LIMITED"}
 
 
 def error_response(
-    status_code: int, code: str, message: str, request_id: str | None
+    status_code: int,
+    code: str,
+    message: str,
+    request_id: str | None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     envelope = ErrorEnvelope(error=ErrorBody(code=code, message=message, request_id=request_id))
-    headers = {REQUEST_ID_HEADER: request_id} if request_id else None
-    return JSONResponse(envelope.model_dump(), status_code=status_code, headers=headers)
+    all_headers = {**(headers or {}), **({REQUEST_ID_HEADER: request_id} if request_id else {})}
+    return JSONResponse(envelope.model_dump(), status_code=status_code, headers=all_headers)
 
 
 def _request_id(request: Request) -> str | None:
@@ -36,7 +40,8 @@ def _request_id(request: Request) -> str | None:
 async def _handle_domain_error(request: Request, exc: Exception) -> JSONResponse:
     exc = cast(SamvidhanError, exc)
     # The raise site logs with context; the middleware logs the status. No duplicate line here.
-    return error_response(exc.http_status, exc.code, exc.message, _request_id(request))
+    headers = {"Retry-After": str(exc.retry_after_s)} if isinstance(exc, RateLimitedError) else None
+    return error_response(exc.http_status, exc.code, exc.message, _request_id(request), headers)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:

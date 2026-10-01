@@ -51,3 +51,33 @@ class LLMBusyError(SamvidhanError):
     code = "BUSY"
     http_status = 503
     default_message = "The service is busy right now. Please try again later."
+
+
+class EmptyMessageError(SamvidhanError):
+    code = "EMPTY_MESSAGE"
+    http_status = 422
+    default_message = "The message is empty."
+
+
+class MessageTooLongError(SamvidhanError):
+    code = "MESSAGE_TOO_LONG"
+    http_status = 422
+    default_message = "The message is too long."
+
+
+class SessionFullError(SamvidhanError):
+    """The session reached `MAX_MESSAGES_PER_SESSION` (HLD §13.2)."""
+
+    code = "SESSION_FULL"
+    http_status = 409
+    default_message = "This chat is full. Please start a new chat."
+
+
+class RateLimitedError(SamvidhanError):
+    code = "RATE_LIMITED"
+    http_status = 429
+    default_message = "Too many requests. Please slow down."
+
+    def __init__(self, retry_after_s: int, message: str | None = None) -> None:
+        super().__init__(message)
+        self.retry_after_s = retry_after_s

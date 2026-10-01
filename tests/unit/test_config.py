@@ -43,3 +43,13 @@ def test_chunk_limits_must_be_ordered(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CHUNK_TARGET_MAX_TOKENS", "900")  # above CHUNK_MAX_TOKENS=800
     with pytest.raises(ValueError, match="CHUNK_TARGET_MIN_TOKENS"):
         Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_ip_salt_must_be_set_outside_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENV", "prod")
+    with pytest.raises(ValueError, match="IP_HASH_SALT"):
+        Settings(_env_file=None)  # type: ignore[call-arg]
+    monkeypatch.setenv("IP_HASH_SALT", "s3cret-random")
+    monkeypatch.setenv("TRUSTED_PROXY_IPS", "10.0.0.5, 10.0.0.6")
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings.trusted_proxy_ips == ["10.0.0.5", "10.0.0.6"]

@@ -145,8 +145,10 @@ class Settings(BaseSettings):
     rate_limit_ip_daily: str = "300/day"
     sessions_per_ip_daily: int = 20
     ip_hash_salt: SecretStr = SecretStr("change-me")
+    # Peers allowed to set X-Forwarded-For (e.g. the Streamlit UI container); empty = trust nobody.
+    trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "trusted_proxy_ips", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
         """Accept `CORS_ORIGINS=a,b` as written in `.env.example`."""
@@ -167,6 +169,13 @@ class Settings(BaseSettings):
                 "need CHUNK_TARGET_MIN_TOKENS < CHUNK_TARGET_MAX_TOKENS <= CHUNK_MAX_TOKENS"
                 " <= EMBED_MAX_LENGTH"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _ip_salt_is_secret_outside_dev(self) -> "Settings":
+        """A known salt lets anyone brute-force the IPv4 space back out of the stored hashes."""
+        if self.env != "dev" and self.ip_hash_salt.get_secret_value() in {"", "change-me"}:
+            raise ValueError("set IP_HASH_SALT to a random secret outside dev")
         return self
 
     def daily_caps(self) -> dict[str, int]:

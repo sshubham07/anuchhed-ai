@@ -1,11 +1,18 @@
 """Structured memory update and the in-process store (HLD §9.3)."""
 
+import dataclasses
 import uuid
 
 from samvidhan.generation import templates
 from samvidhan.memory.store import InMemorySessionStore
-from samvidhan.memory.structured import ARTICLES_DISCUSSED_MAX, RECENT_TOPICS_MAX, apply_turn
-from samvidhan.memory.types import SessionMemory, Turn
+from samvidhan.memory.structured import (
+    ARTICLES_DISCUSSED_MAX,
+    RECENT_TOPICS_MAX,
+    apply_turn,
+    from_json,
+    to_json,
+)
+from samvidhan.memory.types import ChatMessage, SessionMemory, Turn
 
 
 def turn(refs: list[str], topic: str = "topic", route_type: str = "simple") -> Turn:
@@ -36,10 +43,29 @@ def test_caps_and_uncited_turns() -> None:
     assert after_chitchat.recent_topics == memory.recent_topics
 
 
+def test_parts_discussed_roll_forward_and_json_round_trip() -> None:
+    memory = apply_turn(
+        SessionMemory(), dataclasses.replace(turn(["21"]), cited_parts=["III"]), max_messages=4
+    )
+    memory = apply_turn(
+        memory, dataclasses.replace(turn(["48A", "21"]), cited_parts=["IV", "III"]), max_messages=4
+    )
+    assert memory.parts_discussed == ["IV", "III"]
+    data = to_json(memory)
+    assert set(data) == {"last_articles", "articles_discussed", "parts_discussed", "recent_topics"}
+    history = [ChatMessage("user", "q")]
+    restored = from_json(data, summary="s", messages=history)
+    assert restored == dataclasses.replace(memory, summary="s", messages=history)
+    assert from_json({"last_articles": "21", "bogus": 1}, summary=None, messages=[]) == (
+        SessionMemory()
+    )  # malformed jsonb degrades to empty memory
+
+
 async def test_store_keeps_sessions_apart_and_skips_none() -> None:
     store = InMemorySessionStore(max_messages=12)
     a, b = uuid.uuid4(), uuid.uuid4()
-    await store.save_turn(a, turn(["21"]))
+    saved = await store.save_turn(a, turn(["21"]))
+    assert saved.message_id is None
     assert (await store.load(a)).last_articles == ["21"]
     assert (await store.load(b)).last_articles == []
     await store.save_turn(None, turn(["14"]))

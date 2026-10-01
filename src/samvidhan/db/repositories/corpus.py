@@ -87,3 +87,45 @@ class CorpusRepository:
             select(Document.version_date).where(Document.is_active)
         )
         return result.scalar_one_or_none()
+
+    async def active_chunks_for_ref(self, ref: str) -> list[Chunk]:
+        """Every chunk of one canonical ref (`21A`, `SCH-7`, `APP-I`, `PREAMBLE`) in the active
+        document, in reading order. Used by `GET /v1/articles/{ref}`."""
+        if ref == "PREAMBLE":
+            condition = Chunk.chunk_type == "preamble"
+        elif ref.startswith("SCH-"):
+            condition = Chunk.schedule_no == ref.removeprefix("SCH-")
+        elif ref.startswith("APP-"):
+            condition = Chunk.appendix_no == ref.removeprefix("APP-")
+        else:
+            condition = Chunk.article_no == ref
+        result = await self._session.execute(
+            select(Chunk)
+            .join(Document, Document.id == Chunk.document_id)
+            .where(Document.is_active, condition)
+            .order_by(Chunk.seq)
+        )
+        return list(result.scalars())
+
+    async def parts_for_articles(self, article_nos: Sequence[str]) -> list[str]:
+        """Distinct Parts (e.g. `III`) of the given Articles in the active document, in the order
+        the Articles were given (for `parts_discussed`, HLD §9.3)."""
+        if not article_nos:
+            return []
+        result = await self._session.execute(
+            select(Chunk.article_no, Chunk.part_no)
+            .join(Document, Document.id == Chunk.document_id)
+            .where(
+                Document.is_active,
+                Chunk.article_no.in_(list(article_nos)),
+                Chunk.part_no.is_not(None),
+            )
+            .distinct()
+        )
+        part_of = {row.article_no: row.part_no for row in result}
+        parts: list[str] = []
+        for article_no in article_nos:
+            part = part_of.get(article_no)
+            if part and part not in parts:
+                parts.append(part)
+        return parts

@@ -7,7 +7,7 @@ PDF ?= data/raw/constitution.pdf
 API_PORT ?= 8000
 
 .PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
-        lint fmt typecheck test test-unit test-integration test-llm eval-retrieval eval-router eval-full \
+        lint fmt typecheck openapi test test-unit test-integration test-llm eval-retrieval eval-router eval-full \
         clean diagrams graph ask chat hooks
 
 help: ## Show this help
@@ -108,6 +108,9 @@ diagrams: ## Render README diagrams (docs/diagrams/*.mmd → .svg; needs Node)
 	@for f in docs/diagrams/*.mmd; do \
 		npx -y @mermaid-js/mermaid-cli -q -c docs/diagrams/mermaid.config.json -b white -i $$f -o $${f%.mmd}.svg; \
 	done
+
+openapi: ## Refresh the committed OpenAPI snapshot (docs/api/openapi.json)
+	DATABASE_URL=postgresql+asyncpg://x:x@localhost:1/x uv run python -m samvidhan.api.openapi > docs/api/openapi.json
 
 graph: ## Export the LangGraph pipeline to Mermaid (docs/design/graph.mmd) and re-render its SVG
 	uv run python -m samvidhan.graph.export docs/design/graph.mmd docs/diagrams/langgraph.mmd

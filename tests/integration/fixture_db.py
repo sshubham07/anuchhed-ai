@@ -43,6 +43,9 @@ CORPUS = [
 ]  # fmt: skip
 
 
+PARTS = {"14": "III", "21": "III", "21A": "III", "22": "III", "48A": "IV"}
+
+
 def alembic_config(url: str) -> Config:
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url)
@@ -59,6 +62,7 @@ def _rows() -> list[dict[str, Any]]:
             "article_no": article_no,
             "schedule_no": schedule_no,
             "article_title": title,
+            "part_no": PARTS.get(article_no or ""),
             "text": text,
             "embed_text": text,
             "token_count": len(text.split()),

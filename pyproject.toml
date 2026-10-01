@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.142.2",
     "langgraph==1.2.12",
+    "limits>=5.8.0",
     "litellm==1.103.1",
     "pgvector>=0.5.0",
     "pydantic>=2.13.5",
@@ -17,6 +18,7 @@ dependencies = [
     "sentence-transformers>=6.1.0",
     "sqlalchemy[asyncio]>=2.1.1",
     "structlog>=26.1.0",
+    "uuid-utils>=0.17.1",
     "uvicorn[standard]>=0.54.0",
 ]
 
