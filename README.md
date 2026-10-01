@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🇮🇳 Samvidhan RAG
+# 🇮🇳 NyayaAI
 
 **A production-oriented, citation-grounded RAG system for the Constitution of India — designed around retrieval
 evaluation, failure handling, and Article-level source attribution.**
 
 ![Phase](https://img.shields.io/badge/phase-6%20web%20UI%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-353%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-357%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)

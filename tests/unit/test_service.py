@@ -152,6 +152,20 @@ async def test_context_and_ref_caps_log_limit_applied(
     assert limits == {"article_refs", "context_chunks"}
 
 
+async def test_defaults_keep_top_final_k_plus_pins_untrimmed(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings
+) -> None:
+    many = [chunk(f"art-{n}#0", article_no=str(n), seq=n) for n in range(100, 114)]  # 14 hits
+    svc = _service(monkeypatch, settings, dense=many, lexical=[], pinned=[ART21A])
+    with structlog.testing.capture_logs() as logs:
+        plain = await svc.retrieve("q")
+        with_pin = await svc.retrieve("q", refs=["21A"])
+    assert len(plain.chunks) == settings.final_k == 10
+    assert len(with_pin.chunks) == settings.final_k + 1
+    assert with_pin.chunks[0].id == "art-21A#0"
+    assert not any(e["event"] == "limit_applied" for e in logs)
+
+
 async def test_no_active_corpus_is_unavailable(
     monkeypatch: pytest.MonkeyPatch, settings: Settings
 ) -> None:

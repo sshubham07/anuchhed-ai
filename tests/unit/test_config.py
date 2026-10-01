@@ -10,6 +10,15 @@ def test_defaults() -> None:
     assert settings.embed_max_length == 1024
 
 
+def test_retrieval_context_defaults_hold_top_k_plus_pins() -> None:
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings.final_k == 10
+    assert settings.rerank_candidates >= settings.final_k
+    # The chunk cap leaves room for pinned chunks on top of the reranked top-k.
+    assert settings.max_context_chunks == 12 > settings.final_k
+    assert settings.max_context_tokens == 7000
+
+
 def test_env_overrides_and_csv_cors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORS_ORIGINS", "http://a.test, http://b.test")
     monkeypatch.setenv("FINAL_K", "7")

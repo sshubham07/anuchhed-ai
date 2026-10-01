@@ -53,6 +53,15 @@ def test_fit_context_keeps_order_within_token_budget() -> None:
     assert [c.id for c in fit_context(chunks[:1], max_tokens=1)] == ["c0"]  # first always fits
 
 
+def test_default_token_budget_fits_ten_typical_chunks(settings: Settings) -> None:
+    # Chunks target 300-700 tokens; ten ~600-token excerpts must all reach the answer prompt.
+    chunks = [chunk(f"c{n}", article_no=str(n), text="x" * 2400) for n in range(10)]
+    with structlog.testing.capture_logs() as logs:
+        kept = fit_context(chunks, max_tokens=settings.max_context_tokens)
+    assert len(kept) == 10
+    assert not logs
+
+
 def test_messages_include_history_note_and_question(
     settings: Settings, prompt: PromptTemplate
 ) -> None:

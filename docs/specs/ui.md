@@ -158,6 +158,7 @@ to `done`. `CORS_ORIGINS` stays for UIs served from another origin; the default 
 - [ ] `done.debug` is present only when `DEBUG_UI=true`.
 - [ ] Demo flow in a browser: typewriter → persona → starter question → streamed answer with cards → drawer →
       follow-up → Exam toggle (meta tag shows "exam") → 👍 with a comment → reload restores history → New chat.
+- [ ] From a chat, a click on the NyayaAI brand shows a fresh landing (no reload back into the same chat).
 - [ ] No horizontal scroll at 375px wide; the drawer becomes a bottom sheet.
 - [ ] Reduced motion skips the typewriter; the dark theme keeps AA contrast for body text and pills.
 - [ ] Eval: router suite unchanged (no prompt change; override defaults to `None`).
