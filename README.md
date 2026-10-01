@@ -4,8 +4,9 @@
 
 **Ask the Constitution of India anything — get answers cited to the exact Article.**
 
-![Phase](https://img.shields.io/badge/phase-1%20ingestion%20%E2%9C%93-2ea44f)
-![Tests](https://img.shields.io/badge/tests-102%20passing-2ea44f)
+![Phase](https://img.shields.io/badge/phase-3%20retrieval%20built-f9c513)
+![Tests](https://img.shields.io/badge/tests-165%20passing-2ea44f)
+![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
@@ -19,7 +20,7 @@
 
 ## 🗺️ Where we are
 
-<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (next) → 3 Query & retrieval → 4 LLM & router → 5 Chat API → 6 UI → 7 v1.0"></a>
+<a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="100%" alt="Roadmap: 1 Chunk & store in DB (done) → 2 Eval harness (partial) → 3 Query & retrieval (built, 2 gaps) → 4 LLM & router → 5 Chat API → 6 UI → 7 v1.0"></a>
 
 <sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
 
@@ -41,27 +42,28 @@
 </details>
 
 <details>
-<summary>⏳ <b>2 · Eval harness</b> — next</summary>
+<summary>🟡 <b>2 · Eval harness</b> — partial (what retrieval needed)</summary>
 
-1. ✍️ Hand-write 60 golden Q&A cases
-2. 🤖 Generate +90 synthetic cases, human-reviewed
-3. 💬 20 multi-turn conversations
-4. ✂️ Dev / test split (70 / 30)
-5. 📏 Metrics — Recall@k, Hit@1, MRR, nDCG
-6. 📊 `eval.run --suite retrieval` with reports and baseline compare
-7. 🔁 CI job on every PR
+1. 🟡 67 golden Q&A cases drafted (golden v0.1), review pending
+2. ⬜ Generate +90 synthetic cases, human-reviewed
+3. ⬜ 20 multi-turn conversations
+4. 🟡 Dev / test split (≈70 / 30) on the drafted set
+5. ✅ Metrics — Recall@k, Hit@1, MRR, nDCG, candidate recall
+6. ✅ `eval.run --suite retrieval` with reports and baseline compare
+7. ⬜ CI job on every PR
 
 </details>
 
 <details>
-<summary>⬜ <b>3 · Query & retrieval</b></summary>
+<summary>🟡 <b>3 · Query & retrieval</b> — built; 2 gaps before baseline</summary>
 
-1. 🧭 Dense search — query embedding + HNSW cosine
-2. 🔤 Lexical search — Postgres full-text
-3. 🔀 Fuse both lists with RRF
-4. 🎯 Exact lookup — "Article 21A" → that chunk
-5. ⚖️ Rerank with bge-reranker (15 → top 5)
-6. 🧪 Ablation runs and confidence threshold tuning
+1. ✅ Dense search — query embedding + HNSW cosine
+2. ✅ Lexical search — Postgres full-text (terms OR-ed)
+3. ✅ Fuse both lists with RRF
+4. ✅ Exact lookup — "Art. 21-A" → `21A` → all its chunks, pinned
+5. ✅ Rerank with bge-reranker (15 → top 5), RRF order if it fails
+6. ✅ Ablation ([`ablation_v1.md`](eval/reports/ablation_v1.md)) and confidence threshold tuning
+7. ⬜ Promote baseline — candidate recall@15 0.875 (gate 0.95) and rerank latency (p95 ~4–5 s, SLO 0.8 s) open
 
 </details>
 
@@ -175,13 +177,13 @@
 
 ## 🧪 How it was tested
 
-<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit, integration, real PDF"></a>
+<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="100%" alt="Test pyramid: unit (ingestion, retrieval, eval), integration, real PDF and models"></a>
 
 ### ✅ Results
 
 | Check | Result |
 |:--|:-:|
-| All tests (unit + integration + real PDF) | 🟢 **102 / 102** |
+| All tests (unit + integration + real PDF) | 🟢 **165 / 165** |
 | Articles found vs Contents list | 🟢 **506 / 506** |
 | Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
 | Chunks over the 1,024-token limit | 🟢 **0** |
@@ -206,14 +208,26 @@
 Tests: [`tests/unit`](tests/unit) · [`tests/integration`](tests/integration)
 </details>
 
-### 🔎 Quick search check (vectors only, before Phase 3)
+### 🔎 Hybrid search check
 
-| 🙋 Question | 🥇 Top hit |
-|:--|:--|
-| Is education a fundamental right? | **Art. 21A** · Right to education |
-| How can the Constitution be amended? | **Art. 368** |
-| Which amendment removed the right to property? | **Art. 31** (omitted) |
-| What happened to J&K special status in 2019? | **Appendix III** · **Appendix II** · **Art. 370** |
+`python -m samvidhan.retrieval.cli search "<question>"` — dense + full-text → RRF → rerank.
+
+| 🙋 Question | 🥇 Top hit | Rerank score |
+|:--|:--|:--|
+| Can the police arrest me and keep me locked up without telling me why? | **Art. 22** · Protection against arrest and detention | 0.26 |
+| Who appoints the Chief Election Commissioner? | **Art. 324** · Superintendence … of elections | 0.97 |
+| Is police a state subject or a union subject? | **Seventh Schedule** | 0.28 |
+
+### 📏 Retrieval eval (dev, golden v0.1, 36 cases)
+
+| Recall@5 | MRR@10 | Hit@1 (lookup) | nDCG@5 | Candidate recall@15 |
+|:--:|:--:|:--:|:--:|:--:|
+| **0.931** ✅ | **0.931** ✅ | **1.00** ✅ via pinning | 0.877 | 0.875 ❌ (≥ 0.95) |
+
+Lookups pin the Article named in the question (standing in for the Phase 4 router). The search legs alone score
+Recall@5 0.875 and lookup Hit@1 0.50. The low-confidence threshold (0.05) is provisional, tuned on 33 cases.
+
+`make eval-retrieval` · details in [`ablation_v1.md`](eval/reports/ablation_v1.md)
 
 ---
 

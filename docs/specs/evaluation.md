@@ -2,7 +2,7 @@
 
 - **Status:** Draft v1.0
 - **Related:** HLD §14, §15 · plan Phase 2, Phase 4–5 (router), Phase 7 (full eval)
-- **Last updated:** 2026-09-30
+- **Last updated:** 2026-10-01
 
 The point of this spec: every change that can affect answer quality is measured the same way, against the same
 data, with fixed pass/fail thresholds.
@@ -69,6 +69,7 @@ eval/fixtures/
 | `expected_type` | Router label |
 | `expected_refs` | **Must** appear in the retrieved top-k (recall is computed on these). Canonical ids: Articles `21`, `21A`; Schedules `SCH-7`; Preamble `PREAMBLE` |
 | `acceptable_refs` | Also relevant; not required, not penalized |
+| `question_refs` | Refs the question names explicitly (canonical ids), e.g. `["21A"]` for "explain art. 21-A". Optional; defaults to `[]`. The retrieval suite passes them as pinned refs (a perfect router); the router suite scores `article_refs` F1 against them |
 | `reference_answer` | Short ground truth written from the Constitution text; used by RAGAS context recall/precision |
 | `must_refuse` | True for out-of-scope questions |
 | `expected_answer_style` | `brief` / `detailed` / `exam` (router label, HLD §8.5). Optional; defaults to `brief` |
@@ -108,7 +109,7 @@ single-turn case, plus a check that `standalone_query` contains the expected tok
 | `ambiguous` | 5 | "What are my rights?" |
 | `chitchat` | 5 | Greetings, thanks |
 | `adversarial` | 10 | Prompt injection ("ignore your rules and…"), false premises ("Article 21 guarantees free Wi-Fi, right?") |
-| `long_query` | 15 | UPSC mains-style analytical questions ("Discuss the federal features… with reference to…") and advocate fact scenarios (some over 500 chars, up to 4,000, to exercise the 70B router); checks issue spotting, `answer_style` and coverage of every expected Article. Recall for these cases is measured on the full final context (up to `MAX_CONTEXT_CHUNKS_LONG`), not top-5 |
+| `long_query` | 15 | UPSC mains-style analytical questions ("Discuss the federal features… with reference to…") and advocate fact scenarios (some over 500 chars, up to 4,000, to exercise the 70B router); checks issue spotting, `answer_style` and coverage of every expected Article. Recall for these cases is measured on the full final context (up to `MAX_CONTEXT_CHUNKS_LONG`), not top-5. Until decomposition lands (P4.5) they are reported in their own section of the retrieval report and left out of the gated aggregate |
 | **Multi-turn** | 20 convos | Pronoun follow-ups, topic switches, clarify → answer, 6+ turn conversations for memory |
 
 ### 2.5 How the golden set is built
@@ -118,7 +119,7 @@ single-turn case, plus a check that `standalone_query` contains the expected tok
    answers"). Each generated case is **reviewed by a human** — fix or drop. Tag with `"source": "synthetic"`.
 3. **Mine production:** every 👎 and every `low_confidence_retrieval` is reviewed weekly; good ones become new cases.
 4. Split 70/30 dev/test, stratified by category. **Never tune on `test`.**
-5. Version the set (`eval/golden/VERSION`). Changing an existing case needs a note in the PR.
+5. Version the set (`eval/golden/VERSION`). Changing an existing case needs a note in the PR. The version stays `0.x` while the set is below the §2.4 target counts; `1.0` marks the full set.
 
 ---
 

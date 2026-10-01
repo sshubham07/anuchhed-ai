@@ -28,7 +28,7 @@ packages = ["src/samvidhan"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src", "."]  # "." makes eval/ and tests/ first-party for isort
 # Docs and reports are hand-formatted; ruff would otherwise reformat code blocks inside Markdown.
 extend-exclude = ["**/*.md"]
 

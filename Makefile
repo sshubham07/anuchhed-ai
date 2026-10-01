@@ -85,7 +85,7 @@ test-integration: ## Integration tests (testcontainers Postgres)
 
 ## ---- Eval (docs/specs/evaluation.md) ----
 eval-retrieval: ## Retrieval metrics, no LLM cost (Phase 2)
-	uv run python -m eval.run --suite retrieval
+	uv run python -m eval.run --suite retrieval --split dev
 
 eval-router: ## Router accuracy (Phase 4)
 	uv run python -m eval.run --suite router

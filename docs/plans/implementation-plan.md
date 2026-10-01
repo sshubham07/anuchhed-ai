@@ -99,11 +99,13 @@ check ≥ 29/30 clean; chunk count and token histogram recorded in `ingestion_re
 **Spec:** evaluation.md §2, §3.1, §6.
 
 - [ ] P2.1 Hand-write 60 golden cases across all categories incl. `long_query` (start from `eval/golden/*.sample.jsonl`)
+      — **partial:** 67 cases drafted in `eval/golden/single_turn.jsonl` (golden v0.1, `question_refs` added); owner
+      review pending; categories below §2.4 targets
 - [ ] P2.2 Synthetic generation script (LLM from random chunks) → human review → +90 cases; tag `source`
 - [ ] P2.3 20 multi-turn conversations (pronoun follow-ups, topic switches, clarify → answer, one 8+ turn chat)
 - [ ] P2.4 Stratified 70/30 dev/test split; `eval/golden/VERSION` = 1.0
-- [ ] P2.5 `eval/metrics.py` — Recall@k, Hit@1, MRR@10, nDCG@5, candidate recall (unit-tested with toy data)
-- [ ] P2.6 `eval/run.py --suite retrieval` + JSON/Markdown report writer + threshold/baseline comparison
+- [x] P2.5 `eval/metrics.py` — Recall@k, Hit@1, MRR@10, nDCG@5, candidate recall (unit-tested with toy data)
+- [x] P2.6 `eval/run.py --suite retrieval` + JSON/Markdown report writer + threshold/baseline comparison
 - [ ] P2.7 CI job: retrieval suite on PR against the cached fixture DB
 
 **Exit criteria:** ≥ 150 single-turn + 20 multi-turn cases; `eval.run --suite retrieval` produces a report and a
@@ -116,18 +118,20 @@ non-zero exit code on gate failure.
 **Goal:** hit the retrieval gates.
 **Spec:** HLD §8.3.
 
-- [ ] P3.1 `retrieval/dense.py` — query embedding + HNSW cosine top-k (raw SQL in `retrieval/sql.py`)
-- [ ] P3.2 `retrieval/lexical.py` — `websearch_to_tsquery` + `ts_rank_cd` top-k
-- [ ] P3.3 `retrieval/fusion.py` — RRF (k=60), unit-tested
-- [ ] P3.4 `retrieval/lookup.py` — pinned fetch by `article_no` / `schedule_no`; ref normalizer
+- [x] P3.1 `retrieval/dense.py` — query embedding + HNSW cosine top-k (raw SQL in `retrieval/sql.py`)
+- [x] P3.2 `retrieval/lexical.py` — `websearch_to_tsquery` (terms OR-ed) + `ts_rank_cd` top-k
+- [x] P3.3 `retrieval/fusion.py` — RRF (k=60), unit-tested
+- [x] P3.4 `retrieval/lookup.py` — pinned fetch by `article_no` / `schedule_no`; ref normalizer
       (`"Art. 21-A"` → `21A`) validated against the known list
-- [ ] P3.5 `retrieval/rerank.py` — bge-reranker-v2-m3, max_length 512, candidates 15 → top 5; skip-on-error
-- [ ] P3.6 `retrieval/service.py` — orchestrates pinned + dense + lexical + fusion + rerank; returns a trace
+- [x] P3.5 `retrieval/rerank.py` — bge-reranker-v2-m3, max_length 512, candidates 15 → top 5; skip-on-error
+- [x] P3.6 `retrieval/service.py` — orchestrates pinned + dense + lexical + fusion + rerank; returns a trace
       (ids, per-leg ranks, scores, top_score, low_confidence)
-- [ ] P3.7 Ablation run recorded in `eval/reports/ablation_v1.md`: dense only / lexical only / hybrid / hybrid +
+- [x] P3.7 Ablation run recorded in `eval/reports/ablation_v1.md`: dense only / lexical only / hybrid / hybrid +
       rerank
-- [ ] P3.8 Tune `LOW_CONFIDENCE_THRESHOLD` on dev (pick the value that best separates hits from misses)
-- [ ] P3.9 Promote the first retrieval baseline
+- [x] P3.8 Tune `LOW_CONFIDENCE_THRESHOLD` on dev (pick the value that best separates hits from misses)
+- [ ] P3.9 Promote the first retrieval baseline (awaiting owner "promote"; dev run: Recall@5 0.931, MRR@10 0.931, Hit@1 lookup
+      1.00 via pinning (0.50 unpinned), candidate recall@15 0.875 ✗, rerank p95 ~4–5 s ✗ — see
+      `eval/reports/ablation_v1.md`)
 
 **Exit criteria:** Recall@5 ≥ 0.90, Hit@1 (lookup) = 1.00, MRR@10 ≥ 0.75, candidate recall@15 ≥ 0.95 on dev;
 retrieval p95 ≤ 300 ms and rerank p95 ≤ 800 ms locally.

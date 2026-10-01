@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     max_context_chunks_long: int = 15
     max_context_tokens: int = 3000
     max_context_tokens_long: int = 8000
-    low_confidence_threshold: float = 0.30
+    low_confidence_threshold: float = 0.05  # tuned on dev (P3.8)
 
     # ---- Memory ----
     router_history_messages: int = 6

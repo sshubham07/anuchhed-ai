@@ -1,17 +1,22 @@
 flowchart TB
-    subgraph U ["⚡ Unit · 85 tests (56 ingestion) · 0.5 s"]
+    subgraph U ["⚡ Unit · ingestion"]
         direction LR
         u1["🔤 extract 13"] ~~~ u2["🧹 clean 5"] ~~~ u3["📝 footnotes 5"] ~~~ u4["🧱 segment 14"] ~~~ u5["✂️ chunk 9"] ~~~ u6["✅ validate 5"] ~~~ u7["📑 contents 3"] ~~~ u8["🔗 pipeline 2"]
     end
+    subgraph UR ["🔎 Unit · retrieval & eval  (143 unit tests in all · <1 s)"]
+        direction LR
+        v1["🎯 ref lookup 33"] ~~~ v2["🔤 lexical 5"] ~~~ v3["🔀 RRF 4"] ~~~ v4["⚙️ service 9"] ~~~ v5["📏 metrics 5"] ~~~ v6["📚 golden 2"]
+    end
     subgraph I ["🐳 Integration · real Postgres in Docker"]
         direction LR
-        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"]
+        i1["🐘 store & activate 4"] ~~~ i2["🔁 migrations up/down"] ~~~ i3["🔎 search legs & service 4"]
     end
     subgraph R ["📕 Real PDF · slow"]
         direction LR
-        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"]
+        r1["🔤 extraction 5"] ~~~ r2["🔗 full pipeline 4"] ~~~ r3["🧠 bge-m3 smoke 1"] ~~~ r4["⚖️ reranker smoke 1"]
     end
-    U --> I --> R
+    U --> UR --> I --> R
     style U fill:#dafbe1,stroke:#2ea44f
+    style UR fill:#dafbe1,stroke:#2ea44f
     style I fill:#ddf4ff,stroke:#0969da
     style R fill:#fbefff,stroke:#8250df

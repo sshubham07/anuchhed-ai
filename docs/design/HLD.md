@@ -369,7 +369,8 @@ Branch table:
 
 1. **Pinned:** chunks for `article_refs` / `schedule_refs` (exact metadata match on the active document).
 2. **Dense:** bge-m3 query embedding → pgvector HNSW cosine, top `DENSE_K=20`.
-3. **Lexical:** `websearch_to_tsquery('english', q)` over `tsv`, ranked by `ts_rank_cd`, top `LEXICAL_K=20`.
+3. **Lexical:** `websearch_to_tsquery('english', q)` with its terms OR-ed (AND rarely matches a natural-language
+   question; ablation in `eval/reports/ablation_v1.md`) over `tsv`, ranked by `ts_rank_cd`, top `LEXICAL_K=20`.
 4. **Fusion:** Reciprocal Rank Fusion, `score = Σ 1/(60 + rank)`, top `RERANK_CANDIDATES=15`.
 5. **Rerank:** bge-reranker-v2-m3 over (standalone_query, embed_text) → top `FINAL_K=5`. Pinned chunks are always
    included and count toward the context cap (`MAX_CONTEXT_CHUNKS=8`).
