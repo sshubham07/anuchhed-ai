@@ -3,8 +3,8 @@
 Instructions for AI coding agents working in this repo (Claude Code, Cursor, Codex, Copilot, etc.).
 Humans: start with `README.md` and `CONTRIBUTING.md`.
 
-A conversational RAG service that answers questions about the **Constitution of India** using only the official
-text, with Article-level citations. Text in, text out.
+A production-oriented, citation-grounded RAG system for the **Constitution of India**, designed around retrieval
+evaluation, failure handling and Article-level source attribution. Answers come only from the official text. Text in, text out.
 
 > **Read before any work:** `docs/design/HLD.md` (architecture, limits) and `docs/adr/` (decisions).
 > Component detail: `docs/specs/foundation.md`, `docs/specs/evaluation.md`, `docs/specs/observability.md`.

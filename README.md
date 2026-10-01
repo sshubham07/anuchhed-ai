@@ -2,19 +2,47 @@
 
 # 🇮🇳 Samvidhan RAG
 
-**Ask the Constitution of India anything — get answers cited to the exact Article.**
+**A production-oriented, citation-grounded RAG system for the Constitution of India — designed around retrieval
+evaluation, failure handling, and Article-level source attribution.**
 
 ![Phase](https://img.shields.io/badge/phase-6%20web%20UI%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-317%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-352%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
-![Chunks](https://img.shields.io/badge/chunks%20in%20pgvector-702-blue)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Postgres](https://img.shields.io/badge/postgres-16%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)
 
-<sub>Informational only — not legal advice.</sub>
+<a href="docs/screenshots/ui-chat.png"><img src="docs/screenshots/ui-chat.png" width="760" alt="Web UI: a streamed answer to 'What does Article 21 say?' with an Art. 21 citation pill and a manuscript-style citation card"></a>
+
+<sub>Informational only — not legal advice. Not an official Government of India service.</sub>
 
 </div>
+
+---
+
+## 🏗️ Architecture at a glance
+
+<a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="860" alt="Architecture: ① PDF is chunked and stored in pgvector; a question from the ⑥ web UI goes through the ⑤ chat API, ④ router, ③ hybrid search + reranker and ④ answer LLM"></a>
+
+| Layer | What it does | Built with |
+|:--|:--|:--|
+| 📄 Ingestion | Official PDF → one chunk per Article (long ones split at clauses), 506 / 506 Articles validated | PyMuPDF · bge-m3 (local) |
+| 🔎 Retrieval | Vector + full-text search → RRF fusion → cross-encoder rerank; exact "Art. 21-A" lookups pinned | pgvector · Postgres FTS · bge-reranker-v2-m3 |
+| 🔀 Router | One small LLM call rewrites the question, extracts Article refs and picks a route | LiteLLM · Groq (Gemini fallback) |
+| 🤖 Answer | One large LLM call answers **only** from retrieved chunks, streams tokens, cites `[Art. N]` | LangGraph (orchestration only) |
+| 💬 Chat API | Anonymous sessions, structured memory for follow-ups, SSE streaming, rate limits | FastAPI · SQLAlchemy async |
+| 🖥️ Web UI | Streaming chat, citation cards, full-Article drawer, answer-style toggle, feedback | Static HTML/CSS/JS served at `/` |
+| 📈 Observability | Every LLM attempt → one `llm_calls` row; every stage logged with one `request_id` | structlog · Postgres |
+
+**Three things it is designed around:**
+
+| | How |
+|:--|:--|
+| 📏 **Retrieval evaluation** | Golden Q&A set with dev/test split; Recall@k, MRR, nDCG, candidate recall, latency; gates in [`evaluation.md`](docs/specs/evaluation.md) block merges; ablations decide what stays |
+| 🛡️ **Failure handling** | Retry → fallback model → clean `LLM_UNAVAILABLE`; daily quota guard; "not covered" instead of guessing; weak matches flagged; every HLD limit enforced and tested |
+| 📌 **Source attribution** | Citations not in the retrieved text are stripped and logged; each answer shows the quoted Article; the full text is one click away |
+
+<sub>One Postgres, no agent loop, no LangChain retrievers — [HLD](docs/design/HLD.md) · [ADRs](docs/adr/README.md)</sub>
 
 ---
 
@@ -22,165 +50,44 @@
 
 <a href="docs/diagrams/roadmap.svg"><img src="docs/diagrams/roadmap.svg" width="808" alt="Roadmap: 1 Chunk & store (done) → 2 Eval harness (partial) → 3 Retrieval (built, 2 gaps) → 4 LLM & router (built, router eval needs API keys) → 5 Chat API (done) → 6 Web UI (built, polish left) → 7 v1.0"></a>
 
-<sub>🖱️ Click any diagram to open it full size · click a phase below to see its steps</sub>
+| Phase | Status | Left to do |
+|:--|:-:|:--|
+| 1 · Chunk & store | ✅ | — |
+| 2 · Eval harness | 🟡 | Review 67 golden + 20 multi-turn cases, +90 synthetic cases, CI job |
+| 3 · Retrieval | 🟡 | Candidate recall@15 0.875 (gate 0.95), rerank p95 ~4–5 s (SLO 0.8 s), then promote baseline |
+| 4 · LLM & router | 🟡 | First router eval run (`make eval-router`), long-answer context limits |
+| 5 · Chat API | ✅ | — |
+| 6 · Web UI | 🟡 | Polish pass: mobile bottom sheet, a11y (P6.8) |
+| 7 · v1.0 | ⬜ | RAGAS on the test split, load test, failure drills, security pass |
 
-<details>
-<summary>✅ <b>1 · Chunking & storing in DB</b> — done</summary>
-
-1. ⚙️ Project setup — config, logging, Docker Postgres + pgvector, migrations, FastAPI health checks
-2. 📕 Official PDF (edition as on 1 May 2024) + local models (`make models`)
-3. 🔤 Extract text rows with font size, bold and position (PyMuPDF)
-4. 🧹 Clean — drop running headers and page numbers
-5. 📝 Footnotes — attach 754 amendment notes
-6. 🧱 Segment — Part › Chapter › Article / Schedule / Appendix
-7. ✂️ Chunk — one chunk per Article, long ones split at clauses
-8. ✅ Validate — 506 / 506 Articles, none missing or duplicated
-9. 🧠 Embed with bge-m3 (1024-d)
-10. 🐘 Store in Postgres — vector + full-text index, idempotent re-runs
-11. 🧪 Tests — unit, integration and real-PDF runs (102 passing)
-
-</details>
-
-<details>
-<summary>🟡 <b>2 · Eval harness</b> — partial (what retrieval needed)</summary>
-
-1. 🟡 67 golden Q&A cases drafted (golden v0.2: 7 router labels fixed), review pending
-2. ⬜ Generate +90 synthetic cases, human-reviewed
-3. 🟡 20 multi-turn conversations drafted (58 turns, one 9-turn chat; golden v0.3), review pending
-4. 🟡 Dev / test split (≈70 / 30) on the drafted set
-5. ✅ Metrics — Recall@k, Hit@1, MRR, nDCG, candidate recall
-6. ✅ `eval.run --suite retrieval` with reports and baseline compare
-7. ⬜ CI job on every PR
-
-</details>
-
-<details>
-<summary>🟡 <b>3 · Query & retrieval</b> — built; 2 gaps before baseline</summary>
-
-1. ✅ Dense search — query embedding + HNSW cosine
-2. ✅ Lexical search — Postgres full-text (terms OR-ed)
-3. ✅ Fuse both lists with RRF
-4. ✅ Exact lookup — "Art. 21-A" → `21A` → all its chunks, pinned
-5. ✅ Rerank with bge-reranker (15 → top 5), RRF order if it fails
-6. ✅ Ablation ([`ablation_v1.md`](eval/reports/ablation_v1.md)) and confidence threshold tuning
-7. ⬜ Promote baseline — candidate recall@15 0.875 (gate 0.95) and rerank latency (p95 ~4–5 s, SLO 0.8 s) open
-
-</details>
-
-<details>
-<summary>🟡 <b>4 · LLM & router</b> — built; router eval waits for API keys</summary>
-
-1. ✅ LiteLLM client — Groq primary (Qwen3.8 27B router, gpt-oss-120b answers), Gemini 3.5 fallback, 1 retry,
-   every attempt logged to `llm_calls`
-2. ✅ Daily budget guard — near a model's cap, switch to the fallback; both capped → "busy"
-3. ✅ Router — rewrites the question, extracts Article refs and picks the route (JSON, falls back to `simple`)
-4. ✅ HyDE for broad questions, sub-question search for multi-part ones
-5. ✅ Answer prompt — answers only from retrieved chunks, streams tokens
-6. ✅ Citation check — citations not in the retrieved text are removed; disclaimer added
-7. ✅ Canned replies for greetings, vague and out-of-scope questions
-8. ✅ LangGraph pipeline + Mermaid export; `make ask` / `make chat` from the terminal
-9. ⏳ Router eval on dev (`make eval-router`) — needs `GROQ_API_KEY`
-10. 🟡 Long-question mode — answer styles and the 70B router in; long context limits not yet
-
-</details>
-
-<details>
-<summary>✅ <b>5 · Chat API</b> — done</summary>
-
-1. ✅ Sessions, messages and feedback tables (migration 004) + repositories
-2. ✅ `POST /v1/sessions`, history pages, `DELETE` (messages go, feedback snapshots stay)
-3. ✅ Chat memory in Postgres — last 6 messages + `last_articles`, Articles and Parts discussed, recent topics;
-   "what are its exceptions?" resolves to the Article cited last
-4. ✅ `POST /v1/chat` — the LangGraph pipeline streamed as SSE (`meta → token… → citations → done`), or JSON
-5. ✅ Feedback, `GET /v1/articles/{no}` (citation chips), `GET /v1/meta`; OpenAPI snapshot in
-   [`docs/api/openapi.json`](docs/api/openapi.json)
-6. ✅ Rate limits (per session, per IP, new chats per IP per day) and message size / empty / full-chat checks
-7. ✅ 30-day session cleanup (`make cleanup`, run daily) — feedback kept with its Q&A snapshot, unlinked
-8. ✅ Multi-turn router eval — each turn replayed with the expected earlier turns as memory; standalone
-   question gated at ≥ 0.90
-9. ✅ Log completeness — one request logs every stage with the same `request_id`
-10. ✅ Limit tests for every HLD §13.2 limit, incl. new: 503 `BUSY` above `MAX_CONCURRENT_STREAMS` and a note
-    when a question names more than `MAX_ARTICLE_REFS` Articles
-
-</details>
-
-<details>
-<summary>🟡 <b>6 · Web UI</b> — built, packaging + polish left</summary>
-
-1. ✅ Static web UI served by the API at `/` (ADR-0013): ivory paper, saffron/green accents, navy citations
-   — State Emblem logo, tricolour chat background with an Ashoka Chakra watermark
-2. ✅ Preamble typewriter → search box, persona chips, Article of the Day
-3. ✅ Streaming answers, citation pills + manuscript cards, "Read full Article" drawer
-4. ✅ Auto / Brief / Detailed / Exam toggle (`answer_style` override), 👍/👎 with comment, debug panel
-5. ⬜ Polish pass (P6.8)
-
-</details>
-
-<details>
-<summary>⬜ <b>7 · v1.0 release</b></summary>
-
-1. 📊 Full eval with RAGAS on the test split
-2. 🏋️ Load test and failure drills
-3. 🔒 Security pass
-4. 🏷️ Tag `v1.0.0`
-
-</details>
-
-<sub>📋 [Full plan](docs/plans/implementation-plan.md) · 🏛️ [Design (HLD)](docs/design/HLD.md) · 🧭 [Decisions (ADRs)](docs/adr/README.md)</sub>
-
----
-
-## 🧩 The big picture
-
-<a href="docs/diagrams/big-picture.svg"><img src="docs/diagrams/big-picture.svg" width="860" alt="Big picture: ① PDF is chunked and stored in pgvector; a question from the ⑥ web UI goes through the ⑤ chat API, ④ router, ③ hybrid search + reranker and ④ answer LLM"></a>
+<sub>📋 [Full plan with every task](docs/plans/implementation-plan.md)</sub>
 
 ---
 
 ## 🖥️ The web UI
 
 > **The Constitution, talking back** — ivory paper, saffron & green accents, navy citations. Plain HTML/CSS/JS
-> served by the API at `/`: no build step, no npm. <sub>[Why? → ADR-0013](docs/adr/0013-static-web-ui.md) · [spec](docs/specs/ui.md)</sub>
+> served by the API at `/`: no build step, no npm. <sub>[ADR-0013](docs/adr/0013-static-web-ui.md) · [spec](docs/specs/ui.md)</sub>
 
 <table>
 <tr>
-<td width="50%"><a href="docs/screenshots/ui-landing.png"><img src="docs/screenshots/ui-landing.png" width="100%" alt="Landing: Preamble typewriter turns into the search box, persona chips, starter questions, Article of the Day"></a><br/><sub><b>Landing</b> — Preamble → search box, personas, Article of the Day</sub></td>
-<td width="50%"><a href="docs/screenshots/ui-chat.png"><img src="docs/screenshots/ui-chat.png" width="100%" alt="Chat: streamed answer with an Art. 21 citation pill and a manuscript-style citation card, style toggle"></a><br/><sub><b>Chat</b> — streamed answer, citation pill + card, style toggle</sub></td>
-</tr>
-<tr>
-<td width="50%"><a href="docs/screenshots/ui-drawer.png"><img src="docs/screenshots/ui-drawer.png" width="100%" alt="Drawer with the full text of Article 21, previous/next and Ask about this"></a><br/><sub><b>Read full Article</b> — drawer with prev / next</sub></td>
-<td width="50%"><a href="docs/screenshots/ui-night.png"><img src="docs/screenshots/ui-night.png" width="100%" alt="Night-reading dark theme of the chat view"></a><br/><sub><b>Night reading</b> — dark theme, follows the OS or the toggle</sub></td>
+<td width="33%"><a href="docs/screenshots/ui-landing.png"><img src="docs/screenshots/ui-landing.png" width="100%" alt="Landing: Preamble typewriter turns into the search box, persona chips, starter questions, Article of the Day"></a><br/><sub><b>Landing</b> — Preamble → search box, personas, Article of the Day</sub></td>
+<td width="33%"><a href="docs/screenshots/ui-drawer.png"><img src="docs/screenshots/ui-drawer.png" width="100%" alt="Drawer with the full text of Article 21, previous/next and Ask about this"></a><br/><sub><b>Read full Article</b> — drawer with prev / next</sub></td>
+<td width="33%"><a href="docs/screenshots/ui-night.png"><img src="docs/screenshots/ui-night.png" width="100%" alt="Night-reading dark theme of the chat view"></a><br/><sub><b>Night reading</b> — follows the OS or the toggle</sub></td>
 </tr>
 </table>
 
-| Feature | What it does |
-|:--|:--|
-| ✍️ Preamble typewriter | Types the opening of the Preamble, then becomes the search box (instant with reduced motion) |
-| 🎓 Personas | UPSC Aspirant · Advocate · Citizen — sets the answer style and shows four starter questions |
-| 📜 Article of the Day | Same Article for everyone on a given day; "Read full Article" or "Ask about this" |
-| ⚡ Streaming answers | SSE from `POST /v1/chat`; stop button; route + style chips on each answer |
-| 📌 Citations | `Art. 21` pills in the text + manuscript-style cards with the quoted excerpt |
-| 📖 Full-Article drawer | `GET /v1/articles/{no}` — full text, previous / next Article, copy, ask about it |
-| 🎚️ Answer style | Auto / Brief / Detailed / Exam — overrides the router via `answer_style` |
-| 👍 Feedback | 👍 / 👎 with an optional comment → `POST /v1/messages/{id}/feedback` |
-| 💾 History | Session id in the URL + `localStorage`; reload restores the chat; New chat / Clear |
-| 🔬 Behind the answer | Route, standalone question and scored chunks — only when `DEBUG_UI=true` |
-| 🌙 Night reading | Dark theme that follows the OS or the toggle; `/` focuses the composer |
-
-```bash
-make run          # API + UI → http://localhost:8000/   (or: docker compose --profile app up)
-make ui           # open it in the browser
-```
-
-`SERVE_UI=true` mounts `ui/` at `/` (`UI_DIR` to move it) · `DEBUG_UI=true` adds the debug panel — set it to
-`false` before going public. The State Emblem is used as the logo; the footer says it is not an official
-Government of India service.
+- **Ask** — streamed answers with `Art. 21` pills and quoted citation cards; Auto / Brief / Detailed / Exam toggle.
+- **Explore** — personas (UPSC Aspirant · Advocate · Citizen) with starter questions; Article of the Day.
+- **Keep** — 👍 / 👎 with a comment; history restored on reload; New chat / Clear.
+- **Debug** — "Behind the answer" shows the route and scored chunks when `DEBUG_UI=true` (turn off when public).
 
 ---
 
 ## 🤖 How a question is answered
 
 > **One small LLM call routes, one large LLM call answers** — a fixed LangGraph pipeline, not an agent.
-> <sub>[Why? → ADR-0003](docs/adr/0003-deterministic-router-not-agent.md) · [ADR-0011](docs/adr/0011-langgraph-orchestration.md) · [spec](docs/specs/llm-router-generation.md)</sub>
+> <sub>[ADR-0003](docs/adr/0003-deterministic-router-not-agent.md) · [ADR-0011](docs/adr/0011-langgraph-orchestration.md) · [spec](docs/specs/llm-router-generation.md)</sub>
 
 <a href="docs/diagrams/langgraph.svg"><img src="docs/diagrams/langgraph.svg" width="483" alt="LangGraph pipeline: load_memory → route → retrieve / hyde → retrieve / decompose / respond_template → generate → validate_citations → save_turn"></a>
 
@@ -195,7 +102,7 @@ Government of India service.
 | `ambiguous` · `out_of_scope` · `chitchat` | "What are my rights?" · "BNS theft?" · "hi" | Canned reply, no search | 1 |
 
 <details>
-<summary>🛡️ <b>Click — what keeps answers honest</b></summary>
+<summary>🛡️ <b>Guards — what keeps answers honest</b></summary>
 
 | Guard | How |
 |:--|:--|
@@ -206,136 +113,75 @@ Government of India service.
 | Prompt injection | Excerpts and the user's message are data; the router sends "ignore your rules" to `out_of_scope` |
 | Provider down / bad key | 1 retry → Gemini fallback → `LLM_UNAVAILABLE` |
 | Free-tier quota | Usage counted from `llm_calls`; near the cap → fallback model → "busy" |
-| Every call traceable | One `llm_calls` row per attempt: model, tokens, latency, TTFT, status, prompt version |
+| Overload / abuse | Per-session and per-IP rate limits, message size caps, max concurrent streams → 429 / 422 / 503 |
 
 </details>
 
 <details>
-<summary>💻 <b>Click — try it from the terminal</b></summary>
-
-```bash
-make ask Q="What does Article 21 say?"              # needs GROQ_API_KEY in .env
-make ask Q="Can police arrest me?" ARGS=--fake-llm  # no keys: scripted LLM, real search
-make chat                                           # follow-ups keep the context
-```
-
-```text
-Q: What does Article 21 say?
-A: (fake LLM — no model was called) The most relevant provisions retrieved are:
-- Protection of life and personal liberty: "… No person shall be deprived of his life or personal liberty
-  except according to procedure established by law.…" [Art. 21]
-
-_Informational only, based on the text of the Constitution of India (as on 1 May 2024). Not legal advice._
-
-Citations:
-  [Art. 21] Protection of life and personal liberty
-
-route=article_lookup style=brief refs=['21'] fallback=False low_confidence=False
-llm_call purpose=router model=fake/model status=ok …
-llm_call purpose=answer model=fake/model status=ok …
-```
-
-</details>
-
-<details>
-<summary>📡 <b>Click — talk to the API with curl</b></summary>
-
-```bash
-make run                                             # API on :8000 (loads bge-m3 + reranker first)
-SID=$(curl -s -XPOST localhost:8000/v1/sessions | jq -r .session_id)
-curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
-  -d "{\"session_id\":\"$SID\",\"message\":\"What does Article 21 say?\"}"
-curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
-  -d "{\"session_id\":\"$SID\",\"message\":\"What are its exceptions?\"}"
-```
-
-```text
-event: meta
-data: {"route_type": "simple", "standalone_query": "What are the exceptions and limitations to the right
-       to life and personal liberty under Article 21?", "refs": ["21"], …}      ← "its" = Art. 21, from memory
-event: token
-data: {"text": "The Constitution’s text of Article 21 states only"}               ← …111 token events
-event: citations
-data: {"citations": [{"ref": "21", "label": "Art. 21", "title": "Protection of life and personal liberty"}]}
-event: done
-data: {"message_id": 4, "answer": "…", "low_confidence": false, "latency_ms": {"route": 592, …}}
-```
+<summary>📡 <b>API — endpoints and a curl session</b></summary>
 
 | Endpoint | What it does |
 |:--|:--|
 | `POST /v1/sessions` | New anonymous chat → `{session_id}` (UUIDv7) |
-| `GET /v1/sessions/{id}/messages?limit=&before=` | History, oldest first, paged |
+| `GET /v1/sessions/{id}/messages` | History, oldest first, paged |
 | `DELETE /v1/sessions/{id}` | Clear the chat |
-| `POST /v1/chat` | `{session_id, message, stream}` → SSE, or JSON with `stream: false` |
-| `POST /v1/messages/{id}/feedback` | 👍 / 👎 `{rating: 1 or -1, comment?}` |
+| `POST /v1/chat` | `{session_id, message, answer_style?}` → SSE `meta → token… → citations → done`, or JSON |
+| `POST /v1/messages/{id}/feedback` | 👍 / 👎 `{rating, comment?}` |
 | `GET /v1/articles/{no}` | Full text of `21A`, `21-A`, `Sch. 7`, `preamble`… |
 | `GET /v1/meta` | Edition date, pipeline versions, model ids |
 
-Limits: 10 chats/min per session, 30/min and 300/day per IP, 20 new chats per IP per day (IP = TCP peer, or `X-Forwarded-For` from `TRUSTED_PROXY_IPS`), 4,000-character
-messages, 200 messages per chat, 20 answers streaming at once → HTTP 429 (with `Retry-After`) / 422 / 409 / 503.
-Spec: [`api-sessions-memory.md`](docs/specs/api-sessions-memory.md).
+```bash
+SID=$(curl -s -XPOST localhost:8000/v1/sessions | jq -r .session_id)
+curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
+  -d "{\"session_id\":\"$SID\",\"message\":\"What does Article 21 say?\"}"
+curl -N localhost:8000/v1/chat -H 'content-type: application/json' \
+  -d "{\"session_id\":\"$SID\",\"message\":\"What are its exceptions?\"}"   # "its" → Art. 21, from memory
+```
+
+From the terminal without the API: `make ask Q="What does Article 21 say?"` (add `ARGS=--fake-llm` to run
+without API keys) or `make chat`. Spec: [`api-sessions-memory.md`](docs/specs/api-sessions-memory.md).
 
 </details>
 
-### 🔀 Router eval
-
-`make eval-router` runs every dev question through the real router (gates: type accuracy ≥ 0.90, refs F1 ≥ 0.95,
-JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** with the new lineup — results land here.
-
-> ⚠️ Groq retired the Llama 3.1 8B / 3.3 70B models this project first planned on (2026-10-01). The router now runs
-> on `qwen/qwen3.8-27b` and answers on `openai/gpt-oss-120b`, with their hidden reasoning turned down
-> (`MODEL_REASONING_EFFORT`). Groq's free tier is 1,000 requests/day and 8,000 tokens/min per model, so the eval
-> paces itself at 5 calls/min. See [HLD §6](docs/design/HLD.md#6-models).
+> ⚠️ **Models:** Groq retired the Llama 3.1 8B / 3.3 70B models first planned on. The router runs on
+> `qwen/qwen3.8-27b`, answers on `openai/gpt-oss-120b`, Gemini 3.5 as fallback — all set in `.env`, never in code.
+> See [HLD §6](docs/design/HLD.md#6-models).
 
 ---
 
 ## 📄 How chunking works
 
-> **One chunk per Article** — the Constitution's own structure, not fixed-size windows. <sub>[Why? → ADR-0001](docs/adr/0001-structure-aware-chunking.md)</sub>
+> **One chunk per Article** — the Constitution's own structure, not fixed-size windows. <sub>[ADR-0001](docs/adr/0001-structure-aware-chunking.md) · [spec](docs/specs/ingestion.md)</sub>
 
 <a href="docs/diagrams/chunking-pipeline.svg"><img src="docs/diagrams/chunking-pipeline.svg" width="790" alt="Chunking pipeline: PDF → extract → clean → footnotes → segment → chunk → validate → embed → Postgres"></a>
 
-<details>
-<summary>🔍 <b>Click — what each step does</b></summary>
-
-| Step | Module | Key trick |
-|:--|:--|:--|
-| 🔤 Extract | [`extract.py`](src/samvidhan/ingestion/extract.py) | Footnote numbers → `{{fn:N}}` tokens; rows rebuilt by position |
-| 🧹 Clean | [`clean.py`](src/samvidhan/ingestion/clean.py) | Body starts at **PREAMBLE**, runs to the end |
-| 📝 Footnotes | [`footnotes.py`](src/samvidhan/ingestion/footnotes.py) | Numbered by position — survives PDF typos |
-| 🧱 Segment | [`segment.py`](src/samvidhan/ingestion/segment.py) | Headings found by **position**, not bold |
-| ✂️ Chunk | [`chunk.py`](src/samvidhan/ingestion/chunk.py) | Long Articles split at clauses `(1)`, `(2)`… |
-| ✅ Validate | [`validate.py`](src/samvidhan/ingestion/validate.py) | Every Article present, none twice |
-| 🧠 Embed | [`embed.py`](src/samvidhan/ingestion/embed.py) | Local model, no API cost |
-| 🐘 Store | [`corpus.py`](src/samvidhan/db/repositories/corpus.py) | Same PDF twice → no-op |
-
-📘 Full detail: [ingestion spec](docs/specs/ingestion.md)
-</details>
-
-### ✂️ Chunking rules
-
 <a href="docs/diagrams/chunking-rules.svg"><img src="docs/diagrams/chunking-rules.svg" width="800" alt="Chunking rules per segment type"></a>
 
-### 🔬 Anatomy of one chunk
+<details>
+<summary>🔬 <b>Anatomy of one chunk</b></summary>
 
 <a href="docs/diagrams/chunk-anatomy.svg"><img src="docs/diagrams/chunk-anatomy.svg" width="540" alt="Anatomy of one chunk"></a>
 
----
+</details>
 
-## 📊 What landed in the database
+<details>
+<summary>🐛 <b>Tricky things the real PDF taught us</b> (each pinned by a test)</summary>
+
+| 😬 Surprise in the PDF | 🔧 Fix |
+|:--|:--|
+| Headings are **not bold** | Detect by centered position |
+| Footnote `1` printed on 6 pt vs 7.9 pt text | Compare to the **document** body size |
+| Contents say `243-I`, body says `243I` | Normalise both |
+| Footnote numbered `2.` twice (typo) | Number footnotes **by position** |
+| Part VII omitted entirely → no Art. 238 | Stub chunk: *"Omitted."* + amendment note |
+| Appendix I has its own "FIRST SCHEDULE" | Structure rules off inside Appendices |
+
+</details>
 
 <table>
 <tr>
-<td width="50%">
-
-<a href="docs/diagrams/chunks-by-type.svg"><img src="docs/diagrams/chunks-by-type.svg" width="100%" alt="702 chunks by type"></a>
-
-</td>
-<td width="50%">
-
-<a href="docs/diagrams/chunk-sizes.svg"><img src="docs/diagrams/chunk-sizes.svg" width="100%" alt="Chunk size histogram"></a>
-
-</td>
+<td width="50%"><a href="docs/diagrams/chunks-by-type.svg"><img src="docs/diagrams/chunks-by-type.svg" width="100%" alt="702 chunks by type"></a></td>
+<td width="50%"><a href="docs/diagrams/chunk-sizes.svg"><img src="docs/diagrams/chunk-sizes.svg" width="100%" alt="Chunk size histogram"></a></td>
 </tr>
 </table>
 
@@ -346,61 +192,10 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 ---
 
-## 🧪 How it was tested
+## 📏 Evaluation
 
-<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="774" alt="Test pyramid: unit (ingestion, retrieval, eval, LLM/router/graph), integration, real PDF and models"></a>
-
-### ✅ Results
-
-| Check | Result |
-|:--|:-:|
-| All tests (unit + integration + real PDF + live LLM) | 🟢 **344 / 344** (live: `make test-llm`) |
-| Articles found vs Contents list | 🟢 **506 / 506** |
-| Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
-| Chunks over the 1,024-token limit | 🟢 **0** |
-| Every vector 1024-d, unit length | 🟢 |
-| Re-running the same PDF | 🟢 no-op |
-| Every LLM attempt → one `llm_calls` row (FakeLLM over Postgres) | 🟢 |
-| Bad primary key → fallback model | 🟢 (FakeLLM; live check: `make test-llm`) |
-| Graph end to end, all 7 route types (FakeLLM + real Postgres search) | 🟢 |
-| `/v1` API over Postgres: SSE order, follow-up resolved from stored memory, history, feedback | 🟢 |
-| Every HLD §13.2 limit (length, empty, long-query router, caps, truncation, rate, concurrency, timeout) | 🟢 14 tests |
-| One request → every stage logged with the same `request_id` (+ its `llm_calls` rows) | 🟢 |
-| Session expiry: idle > 30 days deleted, feedback kept anonymised | 🟢 |
-| Live: two-turn `curl -N` chat, follow-up → Art. 21 via `last_articles` | 🟢 |
-| ruff · mypy --strict | 🟢 clean |
-
-<details>
-<summary>🐛 <b>Click — tricky things the real PDF taught us (and the tests that pin them)</b></summary>
-
-| 😬 Surprise in the PDF | 🔧 Fix |
-|:--|:--|
-| Headings are **not bold** | Detect by centered position |
-| Omitted Articles have **no bold** | Match `21A.` pattern at heading indent |
-| Footnote `1` printed on 6 pt vs 7.9 pt text | Compare to the **document** body size |
-| Contents say `243-I`, body says `243I` | Normalise both |
-| Footnote numbered `2.` twice (typo) | Number footnotes **by position** |
-| `1 S.C.C. 362` looked like footnote 1 | Undotted numbers need a marker on the page |
-| Part VII omitted entirely → no Art. 238 | Stub chunk: *"Omitted."* + amendment note |
-| Appendix I has its own "FIRST SCHEDULE" | Structure rules off inside Appendices |
-
-Tests: [`tests/unit`](tests/unit) · [`tests/integration`](tests/integration)
-</details>
-
-### 🔎 Hybrid search check
-
-`python -m samvidhan.retrieval.cli search "<question>"` — dense + full-text → RRF → rerank.
-
-| 🙋 Question | 🥇 Top hit | Rerank score |
-|:--|:--|:--|
-| Can the police arrest me and keep me locked up without telling me why? | **Art. 22** · Protection against arrest and detention | 0.26 |
-| Who appoints the Chief Election Commissioner? | **Art. 324** · Superintendence … of elections | 0.97 |
-| Is police a state subject or a union subject? | **Seventh Schedule** | 0.28 |
-
-### 📏 Retrieval eval — dev split, golden v0.1
-
-36 gated cases (long questions are scored separately until Phase 4) · mode: dense + full-text → RRF → rerank ·
-`make eval-retrieval` · report: [`2026-10-01T06-29-04_retrieval_dev.md`](eval/reports/2026-10-01T06-29-04_retrieval_dev.md)
+`make eval-retrieval` · dev split, golden v0.1, 36 gated cases · dense + full-text → RRF → rerank ·
+report: [`2026-10-01T06-29-04_retrieval_dev.md`](eval/reports/2026-10-01T06-29-04_retrieval_dev.md)
 
 | Metric | Value | Gate | Status |
 |:--|:--:|:--:|:--:|
@@ -412,23 +207,27 @@ Tests: [`tests/unit`](tests/unit) · [`tests/integration`](tests/integration)
 | Retrieval latency p50 / p95 | 76 / 95 ms | p95 ≤ 300 ms | ✅ |
 | Rerank latency p50 / p95 | 2,817 / 4,846 ms | p95 ≤ 800 ms | ❌ |
 
-Baseline not promoted yet: candidate recall and rerank latency are open.
+Baseline not promoted yet: candidate recall and rerank latency are open. Router eval (`make eval-router`; type
+accuracy ≥ 0.90, refs F1 ≥ 0.95, JSON validity ≥ 0.99) — first dev run pending.
 
 <details>
-<summary>📌 <b>Pinned vs search only</b> — what happens if the router misses the Article</summary>
+<summary>🧪 <b>Ablation</b> — which part earns its keep</summary>
 
-12 of 36 questions name an Article ("explain art. 21-A"). The eval pins it, standing in for a perfect Phase 4
-router. The search legs alone score:
+| Variant | Recall@5 | MRR@10 | nDCG@5 | Lookup Hit@1 unpinned | Cand. recall@15 |
+|:--|:--:|:--:|:--:|:--:|:--:|
+| Dense only | 0.889 | 0.846 | 0.802 | 0.000 | 0.972 |
+| Full-text only (OR) | 0.625 | 0.563 | 0.516 | 0.200 | 0.486 |
+| Hybrid (RRF) | 0.778 | 0.707 | 0.664 | 0.300 | 0.875 |
+| **Hybrid + rerank (current)** | **0.931** | **0.931** | **0.877** | 0.500 | 0.875 |
+| Dense + rerank (no full-text) | 0.958 | 0.962 | 0.911 | 0.700 | 0.972 |
+| Hybrid + rerank, 25 candidates | 0.931 | 0.933 | 0.883 | 0.600 | 0.944 |
 
-| Recall@5 | MRR@10 | Hit@1 | Hit@1 (lookups) |
-|:--:|:--:|:--:|:--:|
-| 0.875 | 0.811 | 0.750 | 0.500 |
-
-So exact lookups depend on the router extracting refs (ADR-0004, gated at refs F1 ≥ 0.95 in Phase 4).
+The reranker adds the most (Recall@5 0.778 → 0.931). On this set dense + rerank beats the current setup; whether
+to keep the full-text leg is open (ADR-0002). Full: [`ablation_v1.md`](eval/reports/ablation_v1.md)
 </details>
 
 <details>
-<summary>🗂️ <b>By category</b></summary>
+<summary>🗂️ <b>By category, pinning and low-confidence threshold</b></summary>
 
 | Category | n | Recall@5 | MRR@10 | Hit@1 | Cand. recall@15 |
 |:--|:--:|:--:|:--:|:--:|:--:|
@@ -441,68 +240,49 @@ So exact lookups depend on the router extracting refs (ADR-0004, gated at refs F
 | adversarial | 1 | 1.000 | 1.000 | 1.000 | 1.000 |
 | long_query *(not gated)* | 5 | 0.540 | 0.800 | 0.600 | 0.613 |
 
-Misses: "supreme commander of the armed forces" (Art. 53 says "supreme command of the Defence Forces"),
-Art. 300A crowded out by 31A–31D, and "is defence only for Parliament?" (gets Art. 246, not the Seventh
-Schedule entry).
-</details>
-
-<details>
-<summary>🧪 <b>Ablation</b> — which part earns its keep</summary>
-
-| Variant | Recall@5 | MRR@10 | nDCG@5 | Lookup Hit@1 unpinned | Recall@5 unpinned | Cand. recall@15 |
-|:--|:--:|:--:|:--:|:--:|:--:|:--:|
-| Dense only | 0.889 | 0.846 | 0.802 | 0.000 | 0.722 | 0.972 |
-| Full-text only (AND, original HLD) | 0.458 | 0.454 | 0.421 | 0.100 | 0.194 | 0.194 |
-| Full-text only (OR, shipped) | 0.625 | 0.563 | 0.516 | 0.200 | 0.417 | 0.486 |
-| Hybrid (RRF) | 0.778 | 0.707 | 0.664 | 0.300 | 0.542 | 0.875 |
-| **Hybrid + rerank (current)** | **0.931** | **0.931** | **0.877** | 0.500 | 0.875 | 0.875 |
-| Dense + rerank (no full-text) | 0.958 | 0.962 | 0.911 | 0.700 | 0.903 | 0.972 |
-| Hybrid + rerank, 25 candidates | 0.931 | 0.933 | 0.883 | 0.600 | 0.875 | 0.944 |
-
-- The reranker adds the most: Recall@5 rises from 0.778 to 0.931.
-- On this set, the full-text leg hurts: dense + rerank beats the current setup on every metric. Whether to keep
-  it is an open decision (ADR-0002).
-- Full: [`ablation_v1.md`](eval/reports/ablation_v1.md)
-</details>
-
-<details>
-<summary>🎚️ <b>Low-confidence threshold</b></summary>
-
-Top rerank score of correct hits vs misses and out-of-scope questions (33 cases):
-
-| | n | min | median | max |
-|:--|:--:|:--:|:--:|:--:|
-| Correct top hit | 23 | 0.054 | 0.856 | 0.999 |
-| Miss / out of scope | 10 | 0.012 | 0.042 | 0.777 |
-
-Best split is 0.054 (88% accuracy), so `LOW_CONFIDENCE_THRESHOLD=0.05`. This is provisional; re-tune when the
-golden set reaches v1.0.
+- **Pinning:** 12 of 36 questions name an Article; the eval pins it, standing in for the router. Search alone
+  scores Recall@5 0.875 and lookup Hit@1 0.500 — so exact lookups depend on the router's refs (ADR-0004).
+- **Misses:** "supreme commander of the armed forces" (Art. 53 says "supreme command of the Defence Forces"),
+  Art. 300A crowded out by 31A–31D, "is defence only for Parliament?" (gets Art. 246, not the Seventh Schedule).
+- **Low confidence:** best split of top rerank score between correct hits and misses is 0.054 (88% accuracy), so
+  `LOW_CONFIDENCE_THRESHOLD=0.05` — provisional until golden v1.0.
 </details>
 
 ---
 
-## 🚀 Run it
+## 🧪 How it was tested
 
-<details>
-<summary>▶️ <b>Click — 6 commands</b></summary>
+<a href="docs/diagrams/tests.svg"><img src="docs/diagrams/tests.svg" width="774" alt="Test pyramid: unit (ingestion, retrieval, eval, LLM/router/graph/API), integration over real Postgres, real PDF and models"></a>
+
+| Check | Result |
+|:--|:-:|
+| Test suite — unit, integration (real Postgres), real PDF & models | 🟢 **352 / 353** — the 1 live Groq router test (`make test-llm`) returned a provider error |
+| Articles found vs Contents list · missing · duplicate | 🟢 **506 / 506** · 0 · 0 |
+| Chunks over the 1,024-token limit · re-ingesting the same PDF | 🟢 0 · no-op |
+| Graph end to end, all 7 route types (FakeLLM + real search) | 🟢 |
+| Bad primary key → fallback model; every attempt → one `llm_calls` row | 🟢 |
+| Every HLD §13.2 limit (length, rate, concurrency, timeout, truncation…) | 🟢 14 tests |
+| One request → every stage logged with the same `request_id` | 🟢 |
+| ruff · mypy --strict | 🟢 clean |
+
+---
+
+## 🚀 Run it
 
 ```bash
 make setup                      # install + create .env (set POSTGRES_PASSWORD, GROQ_API_KEY, GEMINI_API_KEY)
 make up && make migrate         # Postgres + pgvector on :5433
 make models RERANK=1            # download bge-m3 + reranker (~4.5 GB, once)
 make ingest ARGS=--activate     # PDF in data/raw/ → 702 chunks in Postgres
-make ask Q="What does Article 21 say?"   # cited answer in the terminal
-make run                        # API + web UI → open http://localhost:8000/
+make run                        # API + web UI → http://localhost:8000/
 ```
 
-`make ingest ARGS=--dry-run` → writes `data/processed/chunks.jsonl` + `ingestion_report.json`, no DB.
-Model ids live in `.env`: copy the `# ---- Models` block from `.env.example` (an older `.env` still names the
-retired Llama models).
-</details>
+Or everything in Docker: `docker compose --profile app up`. `make ingest ARGS=--dry-run` writes
+`data/processed/chunks.jsonl` without touching the DB.
 
 ---
 
-## 🧰 Stack
+## 🧰 Stack & docs
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C)
@@ -512,8 +292,6 @@ retired Llama models).
 ![LiteLLM](https://img.shields.io/badge/LiteLLM-Groq%20%C2%B7%20Gemini-purple)
 ![Web UI](https://img.shields.io/badge/UI-HTML%20%C2%B7%20CSS%20%C2%B7%20JS-FF9933)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
-
-## 📚 Docs
 
 | 🏛️ [Design](docs/design/HLD.md) | 🧭 [ADRs](docs/adr/README.md) | 📘 [Specs](docs/specs/) | 📋 [Plan](docs/plans/implementation-plan.md) | 📐 [Standards](docs/standards/engineering-standards.md) | 🤝 [Contributing](CONTRIBUTING.md) |
 |:-:|:-:|:-:|:-:|:-:|:-:|

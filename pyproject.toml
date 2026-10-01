@@ -1,7 +1,7 @@
 [project]
 name = "samvidhan"
 version = "0.1.0"
-description = "Conversational RAG over the Constitution of India with Article-level citations"
+description = "Production-oriented, citation-grounded RAG system for the Constitution of India: retrieval evaluation, failure handling and Article-level source attribution"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
