@@ -55,6 +55,7 @@ class RetrievalResult:
     low_confidence: bool
     latency_ms: dict[str, int]
     trace: dict[str, Any]
+    skipped_refs: list[str] = field(default_factory=list)  # valid refs over MAX_ARTICLE_REFS
 
 
 def chunk_from_row(row: Any, *, pinned: bool = False) -> ScoredChunk:

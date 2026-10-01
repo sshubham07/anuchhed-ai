@@ -45,11 +45,17 @@ class LLMUnavailableError(SamvidhanError):
     default_message = "The language model is unavailable right now. Please try again shortly."
 
 
-class LLMBusyError(SamvidhanError):
-    """Every configured model is near its daily budget cap (HLD §8.6)."""
+class BusyError(SamvidhanError):
+    """Too many answers streaming on this instance (`MAX_CONCURRENT_STREAMS`, HLD §13.2)."""
 
     code = "BUSY"
     http_status = 503
+    default_message = "The service is busy right now. Please try again shortly."
+
+
+class LLMBusyError(BusyError):
+    """Every configured model is near its daily budget cap (HLD §8.6)."""
+
     default_message = "The service is busy right now. Please try again later."
 
 

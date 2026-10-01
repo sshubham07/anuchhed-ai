@@ -171,6 +171,10 @@ async def check_citations(state: ChatState, deps: GraphDeps) -> Update:
     if context and not check.citations:
         log.warning("answer_without_citation", route_type=_route(state).type)
     note = f"\n\n{disclaimer(deps.edition)}"
+    retrieval = state.get("retrieval")
+    if retrieval is not None and retrieval.skipped_refs:
+        skipped = templates.skipped_refs_note(len(retrieval.refs), retrieval.skipped_refs)
+        note = f"\n\n{skipped}{note}"
     _emit(note)
     return {
         "answer": f"{check.text}{note}",

@@ -4,6 +4,7 @@
 fallback, budget and `llm_calls` logging run exactly as in production.
 """
 
+import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Callable, Iterable, Mapping
@@ -27,13 +28,15 @@ class FakeProvider:
 
     `responses[purpose]` is a string, a callable of the request, or a list consumed in order.
     `fail_models[model]` is an error code (e.g. `"auth"` for a bad key) raised for that model;
-    `fail_after_tokens` makes `stream` fail after yielding that many deltas.
+    `fail_after_tokens` makes `stream` fail after yielding that many deltas. `finish_reason` is one
+    value or one per purpose; `delay_s[purpose]` sleeps before replying (timeout tests).
     """
 
     responses: Mapping[Purpose, Reply | list[Reply]] = field(default_factory=dict)
     fail_models: Mapping[str, str] = field(default_factory=dict)
-    finish_reason: str = "stop"
+    finish_reason: str | Mapping[Purpose, str] = "stop"
     fail_after_tokens: int | None = None
+    delay_s: Mapping[Purpose, float] = field(default_factory=dict)
     calls: list[ProviderRequest] = field(default_factory=list)
     _queues: dict[Purpose, list[Reply]] = field(default_factory=dict, init=False)
 
@@ -51,16 +54,27 @@ class FakeProvider:
             script = queue.pop(0)
         return script(request) if callable(script) else script
 
+    def _finish_reason(self, purpose: Purpose) -> str:
+        if isinstance(self.finish_reason, str):
+            return self.finish_reason
+        return self.finish_reason.get(purpose, "stop")
+
+    async def _delay(self, purpose: Purpose) -> None:
+        if delay := self.delay_s.get(purpose):
+            await asyncio.sleep(delay)
+
     async def complete(self, request: ProviderRequest) -> Completion:
+        await self._delay(request.purpose)
         text = self._reply(request)
         return Completion(
             text=text,
             input_tokens=_words(m["content"] for m in request.messages),
             output_tokens=_words([text]),
-            finish_reason=self.finish_reason,
+            finish_reason=self._finish_reason(request.purpose),
         )
 
     async def stream(self, request: ProviderRequest) -> AsyncIterator[str | Completion]:
+        await self._delay(request.purpose)
         text = self._reply(request)
         tokens = re.findall(r"\S+\s*", text) or [text]
         for n, token in enumerate(tokens):
@@ -71,7 +85,7 @@ class FakeProvider:
             text=text,
             input_tokens=_words(m["content"] for m in request.messages),
             output_tokens=len(tokens),
-            finish_reason=self.finish_reason,
+            finish_reason=self._finish_reason(request.purpose),
         )
 
 

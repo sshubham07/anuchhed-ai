@@ -91,9 +91,15 @@ eval/fixtures/
 
 Multi-turn turns may also carry `expected_answer_style` (e.g. a follow-up asking for a 250-word exam answer).
 
-Turns are replayed in order through the real API (`stream=false`) with a fresh session. Each turn is scored like a
-single-turn case, plus a check that `standalone_query` contains the expected tokens and does **not** contain
-`expected_standalone_excludes` (used for topic switches).
+Conversations also carry a `category` (`follow_up` / `topic_switch` / `clarify` / `style_switch` / `long`).
+
+- **Router suite** (P5.10, every router/prompt/memory PR): each turn calls the real router with memory built from
+  the *expected* earlier turns (gold history: `apply_turn` with `expected_refs` as the cited refs and a placeholder
+  answer), so one miss doesn't cascade. Scores `standalone_query` — contains every expected token and **none** of
+  `expected_standalone_excludes` (used for topic switches) — plus type and `answer_style` per turn. Details:
+  `api-sessions-memory.md` §9.2.
+- **Full suite** (Phase 7): turns are replayed in order through the real API (`stream=false`) with a fresh
+  session, and each turn is scored like a single-turn case as well.
 
 ### 2.4 Coverage (target counts)
 
@@ -269,7 +275,9 @@ uv run python -m eval.run --suite full      --split test    # router + answer + 
 - `eval/reports/baseline.json` is the last promoted retrieval report and `baseline_router.json` the last promoted
   router report (see `/eval`).
 - The router suite calls the real router model (every call logged to `llm_calls`), paced by `--rpm` (default 5: ~1.4K tokens per call vs Groq's 8K tokens/min free tier)
-  for free-tier limits, with an empty memory per case. Details: `docs/specs/llm-router-generation.md` §3.11.
+  for free-tier limits, with an empty memory per single-turn case, then replays `multi_turn.jsonl`
+  (`--multi-turn PATH`) with gold history (§2.3). Details: `docs/specs/llm-router-generation.md` §3.11,
+  `api-sessions-memory.md` §9.2.
 - CI: the retrieval suite runs on every PR against a pre-built fixture DB (ingested once per chunker/embedding
   version and cached). The full suite runs nightly on `main` and posts a summary as a workflow artifact.
 
@@ -302,7 +310,7 @@ Each test reads the limit from config (never a literal), so changing a limit doe
 | Article-ref cap | Question naming 14 Articles | 10 pinned (`MAX_ARTICLE_REFS`); answer notes skipped refs; `limit_applied` logged |
 | Context cap | Retrieval returns more than the cap | Context ≤ `MAX_CONTEXT_CHUNKS[_LONG]` and ≤ `MAX_CONTEXT_TOKENS[_LONG]`; pinned chunks kept |
 | Answer cap | FakeLLM returns `finish_reason=length` | Answer ends with the "shortened — ask me to continue" note; `answer_truncated` logged |
-| Session message cap | Session at `MAX_MESSAGES_PER_SESSION` | Next message → "start a new chat" response; no LLM call |
+| Session message cap | Session at `MAX_MESSAGES_PER_SESSION` | 409 `SESSION_FULL` ("start a new chat"); no LLM call |
 | Rate limit | `RATE_LIMIT_SESSION` + 1 requests in a minute | 429 `RATE_LIMITED` with `Retry-After` |
 | Concurrency cap | `MAX_CONCURRENT_STREAMS` + 1 open streams | 503 `BUSY` for the extra one |
 | Timeout | FakeLLM sleeps past `LLM_TIMEOUT_S` | 1 retry → fallback model → `LLM_UNAVAILABLE` if both fail |
@@ -316,5 +324,6 @@ Each test reads the limit from config (never a literal), so changing a limit doe
 - [ ] Retrieval suite runs in CI in < 2 min without network access to LLM providers.
 - [ ] Full suite produces a JSON + Markdown report and exits non-zero on gate failure.
 - [ ] Judge calls are cached and logged to `llm_calls`.
-- [ ] Every limit test in §7.1 passes; truncation rate and word-limit adherence are reported in every full run.
+- [ ] Every limit test in §7.1 passes (done: `tests/integration/test_limits.py`, except the `_LONG` context caps,
+      P4.12); truncation rate and word-limit adherence are reported in every full run.
 - [ ] First baseline promoted and all gates pass on `test`.

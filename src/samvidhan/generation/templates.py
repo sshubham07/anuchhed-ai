@@ -2,6 +2,8 @@
 
 import re
 
+from samvidhan.generation.citations import label
+
 DEFAULT_CLARIFICATION = (
     "Could you tell me a bit more about what you're looking for? For example, a topic such as "
     "Fundamental Rights, Parliament, elections or emergency provisions — or a specific Article."
@@ -35,3 +37,9 @@ def chitchat(message: str) -> str:
     if _THANKS.search(message):
         return "You're welcome! " + _ABOUT
     return "Hello! " + _ABOUT
+
+
+def skipped_refs_note(kept: int, skipped: list[str]) -> str:
+    """Appended when the question names more than MAX_ARTICLE_REFS provisions (HLD §13.2)."""
+    names = ", ".join(label(ref) for ref in skipped)
+    return f"I looked at the first {kept} provisions you named; ask about {names} separately."

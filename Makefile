@@ -8,7 +8,7 @@ API_PORT ?= 8000
 
 .PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
         lint fmt typecheck openapi test test-unit test-integration test-llm eval-retrieval eval-router eval-full \
-        clean diagrams graph ask chat hooks
+        clean diagrams graph ask chat hooks cleanup
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -68,6 +68,9 @@ chat: ## Interactive chat in the terminal (follow-ups keep context) [ARGS="--fak
 
 ingest: ## Ingest the PDF: make ingest [PDF=path.pdf] [ARGS="--activate" | ARGS="--dry-run"]
 	uv run python -m samvidhan.ingestion.cli ingest $(PDF) $(ARGS)
+
+cleanup: ## Expire sessions idle > SESSION_TTL_DAYS, keep feedback anonymized [ARGS="--dry-run"] (run daily)
+	uv run python -m samvidhan.ops.cleanup $(ARGS)
 
 ## ---- Quality ----
 lint: ## ruff lint + format check + mypy

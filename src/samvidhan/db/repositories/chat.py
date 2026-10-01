@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import Select, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from samvidhan.db.models import ChatMessage, ChatSession, Feedback
 
@@ -154,3 +155,92 @@ class FeedbackRepository:
         self._session.add(row)
         await self._session.flush()
         return row
+
+
+@dataclass(frozen=True, slots=True)
+class ExpiryCounts:
+    sessions: int
+    messages: int
+    feedback: int  # feedback rows unlinked from the expired messages (snapshot kept)
+
+
+class ExpiryRepository:
+    """Session expiry (HLD §9.1, spec: api-sessions-memory §9.1): sessions idle since before
+    `cutoff` are deleted with their messages; their feedback keeps only its snapshot."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    @staticmethod
+    def _expired(cutoff: datetime) -> Any:
+        return ChatSession.last_active_at < cutoff
+
+    async def count(self, cutoff: datetime) -> ExpiryCounts:
+        """What a run would expire now (`--dry-run`)."""
+        n_sessions = await self._count(
+            select(func.count()).select_from(ChatSession).where(self._expired(cutoff))
+        )
+        ids = select(ChatSession.id).where(self._expired(cutoff)).scalar_subquery()
+        return await self._counts(ids, n_sessions)
+
+    async def expire_batch(self, cutoff: datetime, limit: int) -> ExpiryCounts:
+        """Anonymize feedback and delete up to `limit` expired sessions. Rows locked by a live
+        request are skipped (the next run gets them)."""
+        result = await self._session.execute(
+            select(ChatSession.id)
+            .where(self._expired(cutoff))
+            .order_by(ChatSession.last_active_at)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        ids = list(result.scalars().all())
+        if not ids:
+            return ExpiryCounts(0, 0, 0)
+        counts = await self._counts(ids, len(ids))
+        await self._snapshot_feedback(ids)
+        await self._session.execute(delete(ChatSession).where(ChatSession.id.in_(ids)))
+        return counts
+
+    async def _snapshot_feedback(self, session_ids: list[uuid.UUID]) -> None:
+        """Guard: fill a missing question/answer snapshot before the message rows go
+        (`FeedbackRepository.add` normally fills both)."""
+        user = aliased(ChatMessage)
+        question = (
+            select(user.content)
+            .where(
+                user.session_id == ChatMessage.session_id,
+                user.id < ChatMessage.id,
+                user.role == "user",
+            )
+            .order_by(user.id.desc())
+            .limit(1)
+            .scalar_subquery()
+        )
+        await self._session.execute(
+            update(Feedback)
+            .where(
+                Feedback.message_id == ChatMessage.id,
+                ChatMessage.session_id.in_(session_ids),
+                or_(Feedback.question.is_(None), Feedback.answer.is_(None)),
+            )
+            .values(
+                question=func.coalesce(Feedback.question, question),
+                answer=func.coalesce(Feedback.answer, ChatMessage.content),
+            )
+        )
+
+    async def _counts(self, session_ids: Any, n_sessions: int) -> ExpiryCounts:
+        in_sessions = ChatMessage.session_id.in_(session_ids)
+        messages = await self._count(
+            select(func.count()).select_from(ChatMessage).where(in_sessions)
+        )
+        feedback = await self._count(
+            select(func.count())
+            .select_from(Feedback)
+            .join(ChatMessage, Feedback.message_id == ChatMessage.id)
+            .where(in_sessions)
+        )
+        return ExpiryCounts(n_sessions, messages, feedback)
+
+    async def _count(self, query: Select[int]) -> int:
+        return int((await self._session.execute(query)).scalar_one())

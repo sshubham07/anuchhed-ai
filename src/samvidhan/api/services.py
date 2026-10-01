@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from samvidhan.api.concurrency import StreamSlots
 from samvidhan.api.ratelimit import RateLimiter
 from samvidhan.core.config import Settings
 from samvidhan.core.logging import get_logger
@@ -31,6 +32,7 @@ class AppServices:
     llm: LLMClient
     graph: ChatGraph
     limiter: RateLimiter
+    streams: StreamSlots
 
     async def aclose(self) -> None:
         await self.llm.recorder.drain()  # pending `llm_calls` rows, before the pool closes
@@ -71,6 +73,7 @@ async def assemble_services(
         llm=llm,
         graph=build_graph(deps),
         limiter=RateLimiter(settings),
+        streams=StreamSlots(settings.max_concurrent_streams),
     )
 
 

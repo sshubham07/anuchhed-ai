@@ -46,7 +46,7 @@
 
 1. 🟡 67 golden Q&A cases drafted (golden v0.2: 7 router labels fixed), review pending
 2. ⬜ Generate +90 synthetic cases, human-reviewed
-3. ⬜ 20 multi-turn conversations
+3. 🟡 20 multi-turn conversations drafted (58 turns, one 9-turn chat; golden v0.3), review pending
 4. 🟡 Dev / test split (≈70 / 30) on the drafted set
 5. ✅ Metrics — Recall@k, Hit@1, MRR, nDCG, candidate recall
 6. ✅ `eval.run --suite retrieval` with reports and baseline compare
@@ -95,8 +95,12 @@
 5. ✅ Feedback, `GET /v1/articles/{no}` (citation chips), `GET /v1/meta`; OpenAPI snapshot in
    [`docs/api/openapi.json`](docs/api/openapi.json)
 6. ✅ Rate limits (per session, per IP, new chats per IP per day) and message size / empty / full-chat checks
-7. ⏳ 30-day session cleanup job + feedback anonymisation
-8. ⬜ Multi-turn router eval, log completeness test, full limit test suite (concurrency, timeouts)
+7. ✅ 30-day session cleanup (`make cleanup`, run daily) — feedback kept with its Q&A snapshot, unlinked
+8. ✅ Multi-turn router eval — each turn replayed with the expected earlier turns as memory; standalone
+   question gated at ≥ 0.90
+9. ✅ Log completeness — one request logs every stage with the same `request_id`
+10. ✅ Limit tests for every HLD §13.2 limit, incl. new: 503 `BUSY` above `MAX_CONCURRENT_STREAMS` and a note
+    when a question names more than `MAX_ARTICLE_REFS` Articles
 
 </details>
 
@@ -224,8 +228,8 @@ data: {"message_id": 4, "answer": "…", "low_confidence": false, "latency_ms": 
 | `GET /v1/meta` | Edition date, pipeline versions, model ids |
 
 Limits: 10 chats/min per session, 30/min and 300/day per IP, 20 new chats per IP per day (IP = TCP peer, or `X-Forwarded-For` from `TRUSTED_PROXY_IPS`), 4,000-character
-messages, 200 messages per chat → HTTP 429 (with `Retry-After`) / 422 / 409. Spec:
-[`api-sessions-memory.md`](docs/specs/api-sessions-memory.md).
+messages, 200 messages per chat, 20 answers streaming at once → HTTP 429 (with `Retry-After`) / 422 / 409 / 503.
+Spec: [`api-sessions-memory.md`](docs/specs/api-sessions-memory.md).
 
 </details>
 
@@ -306,7 +310,7 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 
 | Check | Result |
 |:--|:-:|
-| All tests (unit + integration + real PDF + live LLM) | 🟢 **317 / 317** (live: `make test-llm`) |
+| All tests (unit + integration + real PDF + live LLM) | 🟢 **344 / 344** (live: `make test-llm`) |
 | Articles found vs Contents list | 🟢 **506 / 506** |
 | Missing · duplicate · unexpected | 🟢 **0 · 0 · 0** |
 | Chunks over the 1,024-token limit | 🟢 **0** |
@@ -315,7 +319,10 @@ JSON validity ≥ 0.99, answer style ≥ 0.85). **First dev run in progress** wi
 | Every LLM attempt → one `llm_calls` row (FakeLLM over Postgres) | 🟢 |
 | Bad primary key → fallback model | 🟢 (FakeLLM; live check: `make test-llm`) |
 | Graph end to end, all 7 route types (FakeLLM + real Postgres search) | 🟢 |
-| `/v1` API over Postgres: SSE order, follow-up resolved from stored memory, history, feedback, limits | 🟢 |
+| `/v1` API over Postgres: SSE order, follow-up resolved from stored memory, history, feedback | 🟢 |
+| Every HLD §13.2 limit (length, empty, long-query router, caps, truncation, rate, concurrency, timeout) | 🟢 14 tests |
+| One request → every stage logged with the same `request_id` (+ its `llm_calls` rows) | 🟢 |
+| Session expiry: idle > 30 days deleted, feedback kept anonymised | 🟢 |
 | Live: two-turn `curl -N` chat, follow-up → Art. 21 via `last_articles` | 🟢 |
 | ruff · mypy --strict | 🟢 clean |
 

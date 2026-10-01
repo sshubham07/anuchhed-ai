@@ -5,9 +5,19 @@ from pathlib import Path
 
 import pytest
 
-from eval.golden import GoldenCase, load_cases
+from eval.golden import GoldenCase, GoldenConversation, load_cases
 from eval.metrics import set_f1
-from eval.router_suite import RouterCaseResult, aggregate, markdown
+from eval.router_suite import (
+    ROUTER_GATES,
+    RouterCaseResult,
+    TurnResult,
+    aggregate,
+    aggregate_turns,
+    contains_token,
+    gates_for,
+    gold_memory,
+    markdown,
+)
 from samvidhan.query.router import RouteDecision
 
 
@@ -76,4 +86,74 @@ def test_aggregate_and_markdown() -> None:
 
 
 def test_golden_version_bumped() -> None:
-    assert (Path("eval/golden/VERSION").read_text().strip()) == "0.2"
+    assert (Path("eval/golden/VERSION").read_text().strip()) == "0.3"
+
+
+@pytest.mark.parametrize(
+    ("text", "token", "found"),
+    [
+        ("exceptions to Article 21 personal liberty", "21", True),
+        ("What does Article 210 say?", "21", False),
+        ("Right to education under Article 21A", "21", False),
+        ("Who conducts elections to the Panchayats?", "Panchayat", True),
+        ("Can the money bill be amended?", "Money Bill", True),
+        ("Who is the summoner?", "Parliament", False),
+    ],
+)
+def test_contains_token(text: str, token: str, found: bool) -> None:
+    assert contains_token(text, token) is found
+
+
+def conversation(*turns: dict[str, object]) -> GoldenConversation:
+    return GoldenConversation.model_validate({"id": "MT-X", "split": "dev", "turns": list(turns)})
+
+
+def test_gold_memory_carries_expected_refs_and_templates() -> None:
+    conv = conversation(
+        {"user": "What does Article 21 say?", "expected_type": "article_lookup",
+         "expected_refs": ["21"]},
+        {"user": "Punishment for theft under the BNS?", "expected_type": "out_of_scope"},
+        {"user": "Does it cover self-incrimination?", "expected_type": "simple"},
+    )  # fmt: skip
+    memory = gold_memory(conv.turns[:2], history=6)
+    assert memory.last_articles == ["21"]  # the out-of-scope turn keeps the anchor, like the API
+    assert [m.role for m in memory.messages] == ["user", "assistant"] * 2
+    assert memory.messages[1].content == "(answer citing Art. 21)"
+    assert "only answer questions about the text" in memory.messages[3].content
+    assert gold_memory(conv.turns[:2], history=2).messages[0].role == "user"
+
+
+def test_turn_metrics_and_multi_turn_gate() -> None:
+    conv = conversation(
+        {"user": "What does Article 21 say?", "expected_type": "article_lookup",
+         "expected_refs": ["21"]},
+        {"user": "What are its exceptions?", "expected_type": "simple",
+         "expected_standalone_contains": ["21"]},
+        {"user": "Now tell me about Article 14.", "expected_type": "article_lookup",
+         "expected_standalone_contains": ["14"], "expected_standalone_excludes": ["21"]},
+    )  # fmt: skip
+    turns = [
+        TurnResult(conv, 0, RouteDecision(type="article_lookup", standalone_query="Article 21"), 5),
+        TurnResult(conv, 1, RouteDecision(type="simple",
+                                          standalone_query="exceptions to Article 21"), 5),
+        TurnResult(conv, 2, RouteDecision(type="article_lookup",
+                                          standalone_query="Article 14 vs Article 21"), 5),
+    ]  # fmt: skip
+    assert [t.standalone_ok for t in turns] == [None, True, False]
+    metrics = aggregate_turns(turns)
+    assert metrics["standalone_correctness"] == 0.5
+    assert metrics["mt_type_accuracy"] == 1.0
+    assert metrics["mt_conversations_all_correct"] == 0.0
+    assert metrics["mt_n_standalone_turns"] == 2
+
+    assert "standalone_correctness" not in gates_for({"type_accuracy": 1.0})
+    assert gates_for(metrics) == ROUTER_GATES | {"standalone_correctness": (">=", 0.90)}
+
+
+def test_repo_multi_turn_set_loads() -> None:
+    from eval.golden import load_conversations
+
+    conversations = load_conversations()
+    assert len(conversations) >= 20
+    assert any(len(c.turns) >= 8 for c in conversations)
+    assert {c.split for c in conversations} == {"dev", "test"}

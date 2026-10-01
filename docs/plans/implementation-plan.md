@@ -103,6 +103,7 @@ check ≥ 29/30 clean; chunk count and token histogram recorded in `ingestion_re
       review pending; categories below §2.4 targets
 - [ ] P2.2 Synthetic generation script (LLM from random chunks) → human review → +90 cases; tag `source`
 - [ ] P2.3 20 multi-turn conversations (pronoun follow-ups, topic switches, clarify → answer, one 8+ turn chat)
+      — drafted 2026-10-01 (`multi_turn.jsonl`, 58 turns, golden v0.3); owner review of refs pending
 - [ ] P2.4 Stratified 70/30 dev/test split; `eval/golden/VERSION` = 1.0
 - [x] P2.5 `eval/metrics.py` — Recall@k, Hit@1, MRR@10, nDCG@5, candidate recall (unit-tested with toy data)
 - [x] P2.6 `eval/run.py --suite retrieval` + JSON/Markdown report writer + threshold/baseline comparison
@@ -188,11 +189,14 @@ produces an `llm_calls` row (integration test); a provider failure falls back cl
       `stream=false` JSON mode; persist route, trace, latency breakdown, prompt version
 - [x] P5.7 `POST /v1/messages/{id}/feedback`, `GET /v1/articles/{no}`, `GET /v1/meta`
 - [x] P5.8 Rate limiting (`limits`, see spec api-sessions-memory §3.6): per session, per IP, sessions/IP/day; message length limit
-- [ ] P5.9 Session expiry job (30 days) + feedback anonymization; CLI `samvidhan.ops.cleanup`
-- [ ] P5.10 Multi-turn eval: standalone correctness via `eval.run --suite router` over `multi_turn.jsonl`
-- [ ] P5.11 Log completeness test: one request emits every stage event with the same `request_id`
-- [ ] P5.12 Limit tests from evaluation.md §7.1 (length, empty, long-query switch, caps, truncation, rate,
-      concurrency, timeout); `limit_applied` / `answer_truncated` / `input_rejected` events
+- [x] P5.9 Session expiry job (30 days) + feedback anonymization; CLI `samvidhan.ops.cleanup` (`make cleanup`,
+      run daily from cron)
+- [x] P5.10 Multi-turn eval: standalone correctness via `eval.run --suite router` over `multi_turn.jsonl`
+      (gold-history replay, spec api-sessions-memory §9.2)
+- [x] P5.11 Log completeness test: one request emits every stage event with the same `request_id`
+- [x] P5.12 Limit tests from evaluation.md §7.1 (length, empty, long-query switch, caps, truncation, rate,
+      concurrency, timeout); `limit_applied` / `answer_truncated` / `input_rejected` events (`_LONG` context caps
+      wait for P4.12)
 
 **Exit criteria:** multi-turn standalone correctness ≥ 0.90; API contract tests pass; OpenAPI snapshot committed;
 first token p95 ≤ 2.5 s over 20 local sample requests.

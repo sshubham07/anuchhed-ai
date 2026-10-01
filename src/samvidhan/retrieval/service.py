@@ -55,8 +55,9 @@ class RetrievalService:
             self._known_refs = known
         return self._known_refs
 
-    async def validate_refs(self, raw_refs: Sequence[str]) -> list[str]:
-        """Normalise, drop unknown refs (logged) and cap at MAX_ARTICLE_REFS."""
+    async def validate_refs(self, raw_refs: Sequence[str]) -> tuple[list[str], list[str]]:
+        """Normalise, drop unknown refs (logged) and cap at MAX_ARTICLE_REFS.
+        Returns (kept, skipped by the cap)."""
         refs, rejected = normalize_refs(raw_refs)
         known = await self.known_refs()
         for ref in [*rejected, *(r for r in refs if r not in known)]:
@@ -65,8 +66,7 @@ class RetrievalService:
         cap = self._settings.max_article_refs
         if len(refs) > cap:
             log.warning("limit_applied", limit="article_refs", requested=len(refs), allowed=cap)
-            refs = refs[:cap]
-        return refs
+        return refs[:cap], refs[cap:]
 
     async def retrieve(
         self,
@@ -82,7 +82,7 @@ class RetrievalService:
         settings = self._settings
         started = time.perf_counter()
         latency: dict[str, int] = {}
-        valid_refs = await self.validate_refs(refs)
+        valid_refs, skipped_refs = await self.validate_refs(refs)
 
         async def pinned_leg() -> list[ScoredChunk]:
             if not valid_refs:
@@ -180,6 +180,7 @@ class RetrievalService:
             low_confidence=low_confidence,
             latency_ms=latency,
             trace=trace,
+            skipped_refs=skipped_refs,
         )
 
     async def _rerank(

@@ -14,9 +14,9 @@ from typing import Annotated, Any, cast
 
 import structlog
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from samvidhan.api.concurrency import SlotStreamingResponse
 from samvidhan.api.deps import get_app_settings, get_client_ip_hash, get_db, get_services
 from samvidhan.api.schemas import (
     ChatRequest,
@@ -191,6 +191,7 @@ def _check_message(message: str, settings: Settings) -> str:
         409: {"model": ErrorEnvelope},
         422: {"model": ErrorEnvelope},
         429: {"model": ErrorEnvelope},
+        503: {"model": ErrorEnvelope},
     },
 )
 async def chat(
@@ -200,7 +201,7 @@ async def chat(
     services: Annotated[AppServices, Depends(get_services)],
     settings: Annotated[Settings, Depends(get_app_settings)],
     ip_hash: Annotated[str, Depends(get_client_ip_hash)],
-) -> StreamingResponse | ChatResponse:
+) -> SlotStreamingResponse | ChatResponse:
     # Bound for the rest of the request: logs and `llm_calls.session_id` (llm/client.py).
     structlog.contextvars.bind_contextvars(session_id=str(body.session_id))
     await services.limiter.check_chat(ip_hash, body.session_id)
@@ -220,30 +221,38 @@ async def chat(
         )
         raise SessionFullError()
 
-    log.info("chat_request_received", message_len=len(message), client_ip_hash=ip_hash[:16])
-    request_id: str = request.state.request_id
-    user_row = await MessageRepository(db).add_user(body.session_id, request_id, message)
-    await db.commit()  # HLD §8.1 step C: the question is stored even if the pipeline fails
+    slot = services.streams.acquire()  # 503 BUSY before anything is stored or called
+    streaming = False
+    try:
+        log.info("chat_request_received", message_len=len(message), client_ip_hash=ip_hash[:16])
+        request_id: str = request.state.request_id
+        user_row = await MessageRepository(db).add_user(body.session_id, request_id, message)
+        await db.commit()  # HLD §8.1 step C: the question is stored even if the pipeline fails
 
-    initial: ChatState = {
-        "request_id": request_id,
-        "session_id": body.session_id,
-        "message": message,
-        "user_message_id": user_row.id,
-        "started_at": time.perf_counter(),
-    }
-    events = graph_events(services.graph, initial)
-    if not body.stream:
-        return await collect(events)
+        initial: ChatState = {
+            "request_id": request_id,
+            "session_id": body.session_id,
+            "message": message,
+            "user_message_id": user_row.id,
+            "started_at": time.perf_counter(),
+        }
+        events = graph_events(services.graph, initial)
+        if not body.stream:
+            return await collect(events)
 
-    async def body_stream() -> AsyncIterator[str]:
-        # Closing the generator on client disconnect cancels the graph, so no answer is saved.
-        async with aclosing(events):
-            async for event, data in events:
-                yield sse(event, data)
+        async def body_stream() -> AsyncIterator[str]:
+            # Closing the generator on client disconnect cancels the graph: no answer is saved.
+            async with aclosing(events):
+                async for event, data in events:
+                    yield sse(event, data)
 
-    return StreamingResponse(
-        body_stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+        streaming = True  # the response releases the slot when it finishes
+        return SlotStreamingResponse(
+            body_stream(),
+            slot,
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    finally:
+        if not streaming:
+            slot.release()

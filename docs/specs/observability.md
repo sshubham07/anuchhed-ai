@@ -55,7 +55,7 @@ Two stages:
 | `llm_call_record_failed` | ERROR | `error` (the `llm_calls` insert failed; the request is unaffected) |
 | `invalid_citation` | WARNING | `cited`, `retrieved_refs` |
 | `answer_without_citation` | WARNING | `route_type` |
-| `limit_applied` | WARNING | `limit` (`sub_queries` / `article_refs` / `context_chunks` / `context_tokens`), `requested`, `allowed` |
+| `limit_applied` | WARNING | `limit` (`sub_queries` / `article_refs` / `context_chunks` / `context_tokens` / `concurrent_streams`), `requested`, `allowed` |
 | `answer_truncated` | WARNING | `answer_style`, `max_tokens`, `model` |
 | `input_rejected` | INFO | `reason` (`too_long` / `empty` / `session_full`), `length`, `limit` |
 | `answer_completed` | INFO | `route_type`, `cited_refs`, `low_confidence`, `latency_breakdown` |
@@ -63,6 +63,8 @@ Two stages:
 | `budget_near_cap` | WARNING | `model`, `used_today`, `cap` |
 | `budget_check_failed` | WARNING | `model`, `error` (fail open) |
 | `rate_limited` | INFO | `scope` (`session` / `ip`) |
+| `sessions_expired` | INFO | `n_sessions`, `n_messages`, `n_feedback_anonymized`, `ttl_days`, `dry_run`, `duration_ms` (ops.cleanup) |
+| `cleanup_database_error` | ERROR | `exc_info` (ops.cleanup exits 1) |
 | `request_failed` | ERROR | `error_code`, `exc_info` |
 | `ingestion_started` | INFO | `pdf`, `sha256`, `chunker_version`, `embed_model` |
 | `ingestion_stage_completed` | INFO | `stage`, `count`, `duration_ms` |

@@ -60,6 +60,15 @@ def test_secret_keys_are_redacted(stream: io.StringIO) -> None:
     assert line["nested"] == {"password": REDACTED, "ok": 1}
 
 
+def test_token_counts_are_not_redacted(stream: io.StringIO) -> None:
+    get_logger().info(
+        "llm_call_completed", input_tokens=10, output_tokens=5, max_tokens=700, access_token="t"
+    )
+    [line] = _lines(stream)
+    assert (line["input_tokens"], line["output_tokens"], line["max_tokens"]) == (10, 5, 700)
+    assert line["access_token"] == REDACTED
+
+
 def test_exceptions_are_rendered(stream: io.StringIO) -> None:
     try:
         raise RuntimeError("boom")

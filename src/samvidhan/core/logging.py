@@ -17,7 +17,11 @@ from structlog.types import EventDict, Processor, WrappedLogger
 from samvidhan.core.config import Settings
 
 REDACTED = "[REDACTED]"
-_SECRET_KEY = re.compile(r"api_key|password|secret|token|authorization|database_url", re.IGNORECASE)
+# `token` only as a credential name (`token`, `access_token`); token counts (`max_tokens`,
+# `input_tokens`) are usage data and must stay visible.
+_SECRET_KEY = re.compile(
+    r"api_key|password|secret|authorization|database_url|(?:^|_)token$", re.IGNORECASE
+)
 
 # Libraries that are chatty at INFO. Pinned to WARNING regardless of LOG_LEVEL (observability §1.1).
 _NOISY_LOGGERS = (

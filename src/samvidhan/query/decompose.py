@@ -55,6 +55,7 @@ def merge_results(
         candidates=[c for r in results for c in r.candidates],
         ranked=[c for r in results for c in r.ranked],
         refs=results[0].refs if results else [],
+        skipped_refs=results[0].skipped_refs if results else [],
         top_score=max(scores) if scores else None,
         low_confidence=low_confidence,
         latency_ms={},

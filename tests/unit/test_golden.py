@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from eval.golden import load_cases
+from eval.golden import load_cases, load_conversations
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,3 +30,13 @@ def test_both_splits_cover_the_retrievable_categories() -> None:
     for category in ("article_lookup", "simple", "multi_part", "conceptual", "schedule"):
         splits = {c.split for c in cases if c.category == category}
         assert splits == {"dev", "test"}, category
+
+
+def test_multi_turn_refs_exist() -> None:
+    known = _known_refs()
+    for conversation in load_conversations():
+        for n, turn in enumerate(conversation.turns, start=1):
+            refs = {*turn.expected_refs, *turn.acceptable_refs}
+            assert refs <= known, f"{conversation.id}#{n}: unknown refs {refs - known}"
+        assert conversation.turns[1:], conversation.id
+        assert any(t.checks_standalone for t in conversation.turns[1:]), conversation.id

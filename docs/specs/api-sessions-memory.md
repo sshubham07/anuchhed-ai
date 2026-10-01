@@ -1,9 +1,9 @@
 # Spec: API, sessions, chat history & memory
 
-- **Status:** Implemented (P5.1–P5.8; owner approved the Phase 5 plan on 2026-10-01)
+- **Status:** Implemented (P5.1–P5.8; owner approved the Phase 5 plan on 2026-10-01) · §9 Approved 2026-10-01 (P5.9–P5.12)
 - **Owner:** Shubham
 - **Related:** HLD §8.1, §8.4, §9, §10, §11, §13.2 · ADR-0006, ADR-0007, ADR-0011 · observability.md §1.3 ·
-  plan Phase 5 (P5.1–P5.8)
+  plan Phase 5 (P5.1–P5.12) · evaluation.md §2.3, §6, §7.1
 - **Last updated:** 2026-10-01
 
 ## 1. Problem / goal
@@ -22,9 +22,10 @@ token by token over `curl -N`.
   Postgres `MemoryStore`; `parts_discussed`; `/v1/sessions*`, `/v1/chat` (SSE + JSON), `/v1/messages/{id}/feedback`,
   `/v1/articles/{no}`, `/v1/meta`; readiness checks for models and active document; rate limiting and message
   validation (P5.1–P5.8).
-- **Out of scope:** session expiry job and feedback anonymization CLI (P5.9); multi-turn eval (P5.10); log
-  completeness test (P5.11); the full limit test suite and `MAX_CONCURRENT_STREAMS` (P5.12); rolling summary
-  (Phase 8; `summary` is read if present but never written).
+- **Also in scope (§9, P5.9–P5.12):** session expiry CLI, multi-turn router eval, log completeness test,
+  limit test suite incl. `MAX_CONCURRENT_STREAMS` and the skipped-refs note.
+- **Out of scope:** rolling summary (Phase 8; `summary` is read if present but never written); the `_LONG`
+  context caps and long-answer routing of long-query mode (P4.12, ADR-0012).
 
 ## 3. Design
 
@@ -172,3 +173,86 @@ New: `TRUSTED_PROXY_IPS` (comma-separated, default empty). Uses `MAX_MESSAGE_CHA
 
 - First token p95 is ~4–5 s locally, dominated by rerank on CPU/MPS (retrieval eval: rerank p95 ~4.8–6.9 s).
   The Phase 5 exit criterion (≤ 2.5 s) depends on the open rerank-latency item from Phase 3 (P3.9).
+
+---
+
+## 9. Part 2 — expiry, multi-turn eval, log completeness, limits (P5.9–P5.12)
+
+### 9.1 Session expiry + feedback anonymization (P5.9)
+
+`samvidhan/ops/cleanup.py`, run daily by cron / a scheduled container (HLD §9.1; no scheduler inside the API):
+
+```bash
+uv run python -m samvidhan.ops.cleanup [--dry-run] [--ttl-days N] [--batch-size 500]   # make cleanup
+```
+
+- Expired = `chat_sessions.last_active_at < now() - SESSION_TTL_DAYS` (indexed). `last_active_at` is set at create
+  and on every saved answer.
+- Per batch, in one transaction: (1) **anonymize** feedback on the batch's messages — fill a missing `question` /
+  `answer` snapshot from the rows (they are normally filled at feedback time; this is a guard), (2) delete the
+  sessions; messages cascade and `feedback.message_id` becomes NULL (FK `ON DELETE SET NULL`). Feedback keeps
+  rating, comment and the snapshot only — nothing links it back to a session or IP.
+- `--dry-run` counts without deleting. Logs one `sessions_expired` line: `n_sessions`, `n_messages`,
+  `n_feedback_anonymized`, `ttl_days`, `dry_run`, `duration_ms`. Exit 0 on success, 1 on a DB error.
+- `llm_calls` retention (180 days, observability §1.4) is not part of this job.
+
+### 9.2 Multi-turn router eval (P5.10)
+
+`eval.run --suite router` also runs `eval/golden/multi_turn.jsonl` (schema: evaluation.md §2.3), loaded by
+`eval/golden.py::load_conversations`.
+
+- **Replay with gold history (teacher forcing).** Each turn calls the real router with a `SessionMemory` built from
+  the *expected* earlier turns: `apply_turn` with `cited_refs = expected_refs` and a placeholder assistant message
+  (`"(answer citing Art. 21, Art. 359)"`, or the template text for template routes). One router miss therefore
+  doesn't cascade, the suite stays router-only (~1 LLM call per turn, `--rpm` pacing as today), and results are
+  comparable across runs. End-to-end replay through the API stays with the full suite (Phase 7).
+- **Standalone correctness** (gated ≥ 0.90): over follow-up turns that have `expected_standalone_contains` or
+  `_excludes`, share whose `standalone_query` contains every expected token and none of the excluded ones.
+  Matching is case-insensitive: tokens with a digit match whole words (`21` matches "Article 21", not "210"
+  or "21A"); words match from a word start, so `Panchayat` also matches "Panchayats".
+- Also reported (not gated): per-turn type accuracy and answer-style accuracy, conversations with every turn
+  correct, and failures with the standalone query. Single-turn metrics are unchanged.
+- `multi_turn.jsonl` (20 conversations, P2.3) is the input; the suite skips the multi-turn part with a notice when
+  the file is missing.
+
+### 9.3 Log completeness (P5.11)
+
+Integration test: one `/v1/chat` request with a fixed `X-Request-ID`, logs captured as JSON at DEBUG. Every line
+emitted during the request carries that `request_id` (and the session id once bound), and these events appear:
+`chat_request_received`, `memory_loaded`, `router_completed`, `retrieval_completed`, `rerank_completed`,
+`llm_call_completed` (router + answer), `answer_completed`, `http_request_completed`. The `llm_calls` rows of that
+request have the same `request_id` and `session_id`.
+
+### 9.4 Limits (P5.12)
+
+Tests in `tests/integration/test_limits.py`, one per evaluation.md §7.1 row. Each reads the limit from `Settings`
+(overriding it to a small value where the fixture corpus is too small, e.g. `MAX_ARTICLE_REFS=3`). Two behaviours
+are new:
+
+- **Concurrency cap.** `api/concurrency.py::StreamSlots(MAX_CONCURRENT_STREAMS)` — a non-blocking counter on
+  `AppServices`. `/v1/chat` takes a slot after the input / session checks and before storing the user message;
+  none free → 503 `BUSY` ("try again shortly"), `limit_applied` with `limit=concurrent_streams`, no LLM call, no
+  stored message. The slot is released when the stream ends, errors or the client disconnects (and after the JSON
+  body in `stream=false`). Per instance, like the rate limiter.
+- **Skipped-refs note.** `RetrievalResult.skipped_refs` lists the valid refs dropped by `MAX_ARTICLE_REFS`. When
+  non-empty, the answer ends (before the disclaimer) with "I looked at the first N provisions you named; ask about
+  Art. X, Art. Y separately." — streamed as a `token` and stored with the answer.
+
+Test-only helpers: `FakeProvider` gains a per-purpose `finish_reason` and a per-purpose `delay_s` (async sleep
+before replying) for the answer-cap and timeout rows.
+
+Already implemented and only covered by tests here: length / empty / session-full rejections, long-query router
+switch, sub-query cap, context chunk/token caps (brief values), answer truncation note, rate limit, timeout →
+retry → fallback → `LLM_UNAVAILABLE`.
+
+### 9.5 Acceptance criteria
+
+- [ ] `ops.cleanup` deletes only sessions idle > TTL with their messages; their feedback survives with snapshot and
+      `message_id` NULL; `--dry-run` deletes nothing; `sessions_expired` logged.
+- [ ] `eval.run --suite router` reports `standalone_correctness` and gates it at 0.90; report + CSV include the
+      multi-turn turns.
+- [ ] Log completeness test passes.
+- [ ] Every evaluation.md §7.1 row has a passing test (the `_LONG` context cap variant waits for P4.12).
+- [ ] `MAX_CONCURRENT_STREAMS + 1` concurrent chats → the extra one gets 503 `BUSY`; slots are freed afterwards.
+- [ ] Naming more than `MAX_ARTICLE_REFS` refs adds the skipped-refs note.
+- [ ] OpenAPI snapshot updated (503 on `/v1/chat`); retrieval eval unchanged.

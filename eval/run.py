@@ -3,6 +3,7 @@
     python -m eval.run --suite retrieval --split dev               # gated run, writes a report
     python -m eval.run --suite retrieval --split dev --ablation    # each retrieval mode
     python -m eval.run --suite router --split dev [--rpm 5]       # real router LLM, logged
+                                                                  # (+ multi_turn.jsonl)
 
 Exit code: 0 all gates pass, 1 a gate failed or regressed > 2 pts vs baseline, 2 bad usage.
 """
@@ -21,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from eval.golden import GoldenCase, golden_version, load_cases
+from eval.golden import MULTI_TURN, GoldenCase, golden_version, load_cases
 from eval.metrics import (
     best_threshold,
     hit_at_1,
@@ -75,6 +76,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--rpm", type=float, default=5, help="router suite: max calls/min (Groq free: 8K tok/min)"
     )
+    parser.add_argument(
+        "--multi-turn", type=Path, default=MULTI_TURN, help="router suite: conversations file"
+    )
     args = parser.parse_args(argv)
     if args.ablation and args.split != "dev":
         print("--ablation is a tuning tool; run it on --split dev only (evaluation.md §2.5)")
@@ -96,11 +100,15 @@ def _run_router(settings: Settings, args: argparse.Namespace) -> int:
     if key := router_suite.missing_key(settings):
         print(f"{key} is not set in .env; the router suite calls the real router model")
         return EXIT_USAGE
-    report, results = asyncio.run(router_suite.run_router_suite(settings, args))
+    cases, conversations = router_suite.load_inputs(args)
+    run = asyncio.run(router_suite.run_router_suite(settings, args, cases, conversations))
+    report = run.report
     report["gates"] = _gates(
-        report["metrics"], _load_baseline(ROUTER_BASELINE), router_suite.ROUTER_GATES
+        report["metrics"],
+        _load_baseline(ROUTER_BASELINE),
+        router_suite.gates_for(report["metrics"]),
     )
-    router_suite.write(args.out, report, results)
+    router_suite.write(args.out, run)
     sys.stdout.write(router_suite.markdown(report))
     failed = [g for g in report["gates"] if g["status"] != "PASS"]
     return EXIT_GATE_FAILED if failed else EXIT_OK
