@@ -218,16 +218,87 @@ Tests: [`tests/unit`](tests/unit) · [`tests/integration`](tests/integration)
 | Who appoints the Chief Election Commissioner? | **Art. 324** · Superintendence … of elections | 0.97 |
 | Is police a state subject or a union subject? | **Seventh Schedule** | 0.28 |
 
-### 📏 Retrieval eval (dev, golden v0.1, 36 cases)
+### 📏 Retrieval eval — dev split, golden v0.1
 
-| Recall@5 | MRR@10 | Hit@1 (lookup) | nDCG@5 | Candidate recall@15 |
-|:--:|:--:|:--:|:--:|:--:|
-| **0.931** ✅ | **0.931** ✅ | **1.00** ✅ via pinning | 0.877 | 0.875 ❌ (≥ 0.95) |
+36 gated cases (long questions are scored separately until Phase 4) · mode: dense + full-text → RRF → rerank ·
+`make eval-retrieval` · report: [`2026-10-01T06-29-04_retrieval_dev.md`](eval/reports/2026-10-01T06-29-04_retrieval_dev.md)
 
-Lookups pin the Article named in the question (standing in for the Phase 4 router). The search legs alone score
-Recall@5 0.875 and lookup Hit@1 0.50. The low-confidence threshold (0.05) is provisional, tuned on 33 cases.
+| Metric | Value | Gate | Status |
+|:--|:--:|:--:|:--:|
+| Recall@5 | **0.931** | ≥ 0.90 | ✅ |
+| MRR@10 | **0.931** | ≥ 0.75 | ✅ |
+| Hit@1 (Article lookups) | **1.000** | = 1.00 | ✅ via pinning |
+| Candidate recall@15 (before rerank) | **0.875** | ≥ 0.95 | ❌ |
+| nDCG@5 | 0.877 | — | info |
+| Retrieval latency p50 / p95 | 76 / 95 ms | p95 ≤ 300 ms | ✅ |
+| Rerank latency p50 / p95 | 2,817 / 4,846 ms | p95 ≤ 800 ms | ❌ |
 
-`make eval-retrieval` · details in [`ablation_v1.md`](eval/reports/ablation_v1.md)
+Baseline not promoted yet: candidate recall and rerank latency are open.
+
+<details>
+<summary>📌 <b>Pinned vs search only</b> — what happens if the router misses the Article</summary>
+
+12 of 36 questions name an Article ("explain art. 21-A"). The eval pins it, standing in for a perfect Phase 4
+router. The search legs alone score:
+
+| Recall@5 | MRR@10 | Hit@1 | Hit@1 (lookups) |
+|:--:|:--:|:--:|:--:|
+| 0.875 | 0.811 | 0.750 | 0.500 |
+
+So exact lookups depend on the router extracting refs (ADR-0004, gated at refs F1 ≥ 0.95 in Phase 4).
+</details>
+
+<details>
+<summary>🗂️ <b>By category</b></summary>
+
+| Category | n | Recall@5 | MRR@10 | Hit@1 | Cand. recall@15 |
+|:--|:--:|:--:|:--:|:--:|:--:|
+| article_lookup | 10 | 1.000 | 1.000 | 1.000 | 0.800 |
+| simple (plain language) | 12 | 0.917 | 0.917 | 0.917 | 0.917 |
+| multi_part | 3 | 1.000 | 1.000 | 1.000 | 1.000 |
+| conceptual | 3 | 1.000 | 1.000 | 1.000 | 1.000 |
+| schedule | 4 | 0.750 | 0.625 | 0.500 | 0.750 |
+| omitted_amended | 3 | 0.833 | 1.000 | 1.000 | 0.833 |
+| adversarial | 1 | 1.000 | 1.000 | 1.000 | 1.000 |
+| long_query *(not gated)* | 5 | 0.540 | 0.800 | 0.600 | 0.613 |
+
+Misses: "supreme commander of the armed forces" (Art. 53 says "supreme command of the Defence Forces"),
+Art. 300A crowded out by 31A–31D, and "is defence only for Parliament?" (gets Art. 246, not the Seventh
+Schedule entry).
+</details>
+
+<details>
+<summary>🧪 <b>Ablation</b> — which part earns its keep</summary>
+
+| Variant | Recall@5 | MRR@10 | nDCG@5 | Lookup Hit@1 unpinned | Recall@5 unpinned | Cand. recall@15 |
+|:--|:--:|:--:|:--:|:--:|:--:|:--:|
+| Dense only | 0.889 | 0.846 | 0.802 | 0.000 | 0.722 | 0.972 |
+| Full-text only (AND, original HLD) | 0.458 | 0.454 | 0.421 | 0.100 | 0.194 | 0.194 |
+| Full-text only (OR, shipped) | 0.625 | 0.563 | 0.516 | 0.200 | 0.417 | 0.486 |
+| Hybrid (RRF) | 0.778 | 0.707 | 0.664 | 0.300 | 0.542 | 0.875 |
+| **Hybrid + rerank (current)** | **0.931** | **0.931** | **0.877** | 0.500 | 0.875 | 0.875 |
+| Dense + rerank (no full-text) | 0.958 | 0.962 | 0.911 | 0.700 | 0.903 | 0.972 |
+| Hybrid + rerank, 25 candidates | 0.931 | 0.933 | 0.883 | 0.600 | 0.875 | 0.944 |
+
+- The reranker adds the most: Recall@5 rises from 0.778 to 0.931.
+- On this set, the full-text leg hurts: dense + rerank beats the current setup on every metric. Whether to keep
+  it is an open decision (ADR-0002).
+- Full: [`ablation_v1.md`](eval/reports/ablation_v1.md)
+</details>
+
+<details>
+<summary>🎚️ <b>Low-confidence threshold</b></summary>
+
+Top rerank score of correct hits vs misses and out-of-scope questions (33 cases):
+
+| | n | min | median | max |
+|:--|:--:|:--:|:--:|:--:|
+| Correct top hit | 23 | 0.054 | 0.856 | 0.999 |
+| Miss / out of scope | 10 | 0.012 | 0.042 | 0.777 |
+
+Best split is 0.054 (88% accuracy), so `LOW_CONFIDENCE_THRESHOLD=0.05`. This is provisional; re-tune when the
+golden set reaches v1.0.
+</details>
 
 ---
 
