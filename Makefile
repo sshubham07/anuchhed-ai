@@ -7,7 +7,7 @@ PDF ?= data/raw/constitution.pdf
 API_PORT ?= 8000
 
 .PHONY: help setup up down db-shell db-logs migrate migrate-down migration run ui models ingest \
-        lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean diagrams
+        lint fmt typecheck test test-unit test-integration eval-retrieval eval-router eval-full clean diagrams hooks
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -17,6 +17,12 @@ setup: ## Install deps, create .env from the template, install git hooks
 	uv sync
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example — add your API keys")
 	@if [ -f .pre-commit-config.yaml ]; then uv run pre-commit install; else echo "pre-commit: no config yet (P0.10)"; fi
+	@$(MAKE) --no-print-directory hooks
+
+hooks: ## Install the git commit-msg hook that keeps README.md in step with changes
+	@printf '#!/bin/sh\nexec .claude/hooks/readme-guard.sh --git "$$1"\n' > .git/hooks/commit-msg
+	@chmod +x .git/hooks/commit-msg
+	@echo "Installed .git/hooks/commit-msg (README guard)"
 
 ## ---- Database (project-scoped compose; never touches other projects' containers) ----
 up: ## Start Postgres + pgvector and wait until healthy
