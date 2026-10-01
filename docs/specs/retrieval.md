@@ -123,6 +123,11 @@ local_files_only=True)` and returns sigmoid scores in [0, 1] over `(query, embed
 A missing model fails at startup with `InvalidSourceError("… run make models RERANK=1")`. Any exception during
 scoring → log `rerank_skipped` (WARNING, `error`), keep RRF order, `top_score=None` (ADR-0008 fallback).
 
+Local model calls (`BgeM3Embedder.embed`, `BgeReranker.score`) are serialised process-wide by `MODEL_LOCK`
+(`ingestion/embed.py`) on every device: PyTorch's MPS backend is not thread-safe and concurrent forward passes
+segfault the worker. Concurrent retrievals (decomposition, parallel requests) queue on the lock, so the `embed` and
+`rerank` latencies include lock wait, and each waiting call holds a default-executor thread.
+
 ### 3.8 Context assembly and confidence
 
 `chunks = dedupe(pinned + reranked[:FINAL_K])[:MAX_CONTEXT_CHUNKS]` — pinned first in reading order, then

@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from samvidhan.core.errors import InvalidSourceError
-from samvidhan.ingestion.embed import resolve_device
+from samvidhan.ingestion.embed import MODEL_LOCK, resolve_device
 
 
 class Reranker(Protocol):
@@ -41,7 +41,8 @@ class BgeReranker:
     def score(self, query: str, texts: Sequence[str]) -> list[float]:
         if not texts:
             return []
-        scores = self._model.predict([(query, text) for text in texts], show_progress_bar=False)
+        with MODEL_LOCK:
+            scores = self._model.predict([(query, text) for text in texts], show_progress_bar=False)
         return [float(value) for value in scores]
 
 

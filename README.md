@@ -6,7 +6,7 @@
 evaluation, failure handling, and Article-level source attribution.**
 
 ![Phase](https://img.shields.io/badge/phase-6%20web%20UI%20built-f9c513)
-![Tests](https://img.shields.io/badge/tests-352%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-353%20passing-2ea44f)
 ![Recall@5](https://img.shields.io/badge/Recall%405%20(dev)-0.93-2ea44f)
 ![Articles](https://img.shields.io/badge/articles-506%2F506-blue)
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
@@ -256,7 +256,7 @@ to keep the full-text leg is open (ADR-0002). Full: [`ablation_v1.md`](eval/repo
 
 | Check | Result |
 |:--|:-:|
-| Test suite — unit, integration (real Postgres), real PDF & models | 🟢 **352 / 353** — the 1 live Groq router test (`make test-llm`) returned a provider error |
+| Test suite — unit, integration (real Postgres), real PDF & models | 🟢 **353 / 354** — the 1 live Groq router test (`make test-llm`) returned a provider error |
 | Articles found vs Contents list · missing · duplicate | 🟢 **506 / 506** · 0 · 0 |
 | Chunks over the 1,024-token limit · re-ingesting the same PDF | 🟢 0 · no-op |
 | Graph end to end, all 7 route types (FakeLLM + real search) | 🟢 |

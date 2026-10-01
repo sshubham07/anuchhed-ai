@@ -6,10 +6,15 @@ first (a missing model fails with a pointer to it instead of a silent 2 GB downl
 
 import hashlib
 import math
+import threading
 from collections.abc import Sequence
 from typing import Protocol
 
 from samvidhan.core.errors import InvalidSourceError
+
+# PyTorch's MPS backend is not thread-safe: concurrent forward passes from `asyncio.to_thread`
+# workers race on its shader cache and segfault. Every local model call takes this lock.
+MODEL_LOCK = threading.Lock()
 
 
 class Embedder(Protocol):
@@ -50,12 +55,13 @@ class BgeM3Embedder:
         self.dimension = int(self._model.get_embedding_dimension() or 0)
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        vectors = self._model.encode(
-            list(texts),
-            batch_size=self._batch_size,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
+        with MODEL_LOCK:
+            vectors = self._model.encode(
+                list(texts),
+                batch_size=self._batch_size,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
         return [vector.tolist() for vector in vectors]
 
 
