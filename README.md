@@ -12,6 +12,10 @@ evaluation, failure handling, and Article-level source attribution.**
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
 ![Postgres](https://img.shields.io/badge/postgres-16%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)
 
+### 🎬 Demo
+
+https://github.com/user-attachments/assets/93821e04-300f-449c-8723-e432d7942608
+
 <a href="docs/screenshots/ui-chat.png"><img src="docs/screenshots/ui-chat.png" width="760" alt="Web UI: a streamed answer to 'What does Article 21 say?' with an Art. 21 citation pill and a manuscript-style citation card"></a>
 
 <sub>Informational only — not legal advice. Not an official Government of India service.</sub>
