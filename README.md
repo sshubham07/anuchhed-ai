@@ -269,18 +269,66 @@ to keep the full-text leg is open (ADR-0002). Full: [`ablation_v1.md`](eval/repo
 
 ---
 
-## 🚀 Run it
+## 🚀 Run it on your machine
 
+**You'll need:** [Git](https://git-scm.com/downloads), [uv](https://docs.astral.sh/uv/getting-started/installation/),
+[Docker Desktop](https://www.docker.com/products/docker-desktop/) (open it before you start) and `make`
+(already on Mac and Linux). Also a free [Groq API key](https://console.groq.com/keys). About 6 GB of free space.
+
+**1. Get the code**
 ```bash
-make setup                      # install + create .env (set POSTGRES_PASSWORD, GROQ_API_KEY, GEMINI_API_KEY)
-make up && make migrate         # Postgres + pgvector on :5433
-make models RERANK=1            # download bge-m3 + reranker (~4.5 GB, once)
-make ingest ARGS=--activate     # PDF in data/raw/ → 702 chunks in Postgres
-make run                        # API + web UI → http://localhost:8000/
+git clone https://github.com/sshubham07/anuchhed-ai.git
+cd anuchhed-ai
 ```
 
-Or everything in Docker: `docker compose --profile app up`. `make ingest ARGS=--dry-run` writes
-`data/processed/chunks.jsonl` without touching the DB.
+**2. Install everything**
+```bash
+make setup
+```
+This also creates a `.env` file. Open it and fill in three things:
+- `POSTGRES_PASSWORD` — any password you like
+- `GROQ_API_KEY` — your Groq key
+- `GEMINI_API_KEY` — optional, used if Groq is down
+
+Leave everything else as it is.
+
+**3. Start the database**
+```bash
+make up
+make migrate
+```
+
+**4. Download the AI models** — about 4.5 GB, only the first time. Good time for a chai ☕
+```bash
+make models RERANK=1
+```
+
+**5. Add the Constitution PDF**
+
+Download it from [legislative.gov.in](https://legislative.gov.in/constitution-of-india/) and save it as
+`data/raw/constitution.pdf`.
+
+**6. Load the PDF into the database** (takes ~2 minutes)
+```bash
+make ingest ARGS=--activate
+```
+
+**7. Start the app**
+```bash
+make run
+```
+Open **http://localhost:8000** and ask *"What does Article 21 say?"* 🎉
+
+<details>
+<summary>Something not working?</summary>
+
+- **Database won't start** → make sure Docker Desktop is open. If port 5433 is busy, change `DB_HOST_PORT` in `.env`.
+- **No answer / API error** → check `GROQ_API_KEY` in `.env`.
+- **Want to try without an API key?** → `make ask Q="What does Article 21 say?" ARGS=--fake-llm`
+- **Done for the day?** → `make down` stops the database (your data stays).
+- **Prefer Docker for everything?** → `docker compose --profile app up`
+
+</details>
 
 ---
 
